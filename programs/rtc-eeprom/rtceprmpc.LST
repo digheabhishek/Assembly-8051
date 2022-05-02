@@ -1,0 +1,1154 @@
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.02
+OBJECT MODULE PLACED IN rtceprmpc.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE rtceprmpc.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1      ; Program DYNA-PIO-RTC-EEPROM
+                       2     ;
+                       3     ; This program responds to commands received over the serial
+                       4     ; port to set the date/time as well as RAM data on the DS1307
+                       5     ; 
+                       6     ;
+  000D                 7     CR                      EQU     0DH
+  000A                 8     LF                      EQU     0AH
+  00C6                 9     MCON            EQU     0C6H
+  00C7                10     TA                      EQU     0C7H
+  0080                11     SCL             BIT     P0.0
+  0081                12     SDA             BIT     P0.1
+  0082                13     TRIG            BIT     P0.2
+  00D0                14     DS1307W         EQU     0D0H
+  00D1                15     DS1307R         EQU     0D1H
+  00A0                16     AT24C08W        EQU             0A0H
+  00A1                17     AT24C08R        EQU             0A1H    
+  0020                18     FLAGS           DATA    20H
+  0000                19     LASTREAD        BIT     FLAGS.0
+  0001                20     _12_24          BIT     FLAGS.1
+  0002                21     PM_AM           BIT     FLAGS.2
+  0003                22     OSC             BIT     FLAGS.3
+  0004                23     SQW             BIT     FLAGS.4
+  0005                24     ACK             BIT     FLAGS.5
+  0006                25     BUS_FAULT       BIT     FLAGS.6
+  0007                26     _2W_BUSY        BIT     FLAGS.7
+  0021                27     BITCOUNT        DATA    21H
+  0022                28     BYTECOUNT       DATA    22H
+  0023                29     BYTE            DATA    23H
+                      30     ;********************************************************
+----                  31                     CSEG    AT      0
+0000 0130             32                     AJMP    START
+----                  33                     CSEG    AT 30H
+                      34     
+                      35     ; RESET GOES HERE TO START PROGRAM                     
+                      36     
+0030                  37     START:
+0030 758170           38                     MOV     SP,#70H         ; Position stack above buffer.
+0033 75A800           39                     MOV     IE,#0
+0036 758920           40                     MOV     TMOD,#20H       ; Initialize the
+0039 758DFA           41                     MOV     TH1,#0FAH       ; serial port
+003C 758BFA           42                     MOV     TL1,#0FAH       ; for 9600
+003F 438780           43                     ORL     PCON,#80H       ; baud.
+0042 759852           44                     MOV     SCON,#52H
+0045 758840           45                     MOV     TCON,#40H
+0048 D281             46                     SETB    SDA             ; ENSURE SDA HIGH
+004A 120149           47                     LCALL   SCL_HIGH        ; ENSURE SCL HIGH
+004D C205             48                     CLR     ACK             ; CLEAR STATUS FLAGS
+004F C206             49                     CLR     BUS_FAULT
+0051 C207             50                     CLR     _2W_BUSY
+                      51     ;-----------------------------------------------------------------------
+                      52     ; THIS IS THE MASTER CONTROLLER LOOP
+                      53     ;-----------------------------------------------------------------------
+0053                  54     MASTER_CONTROLLER:
+0053 752202           55                     MOV     BYTECOUNT,#02H
+0056                  56     FORM_FEED: 
+0056 740A             57                     MOV     A,#LF           ; CLEAR SCREEN FOR MAIN MENU
+0058 1204C5           58                     LCALL   WRITE_DATA
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     2
+
+005B D522F8           59                     DJNZ    BYTECOUNT,FORM_FEED
+005E 900588           60                     MOV     DPTR, #TEXT0 ; PUT MAIN MENU ON SCREEN
+0061 1204CD           61                     LCALL   WRITE_TEXT
+0064 900740           62                     MOV     DPTR, #TEXT3
+0067 1204CD           63                     LCALL   WRITE_TEXT
+006A 1204BD           64                     LCALL   READ_DATA
+006D C2E5             65                     CLR     ACC.5 ; CONVERT ACC TO UPPER CASE
+006F B44105           66                     CJNE    A,#'A',NOTA ; CALL SET CLOCK FUNCTION
+0072 120156           67                     LCALL   SET_CLOCKM
+0075 80DC             68                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+0077                  69     NOTA:   
+0077 B44205           70                     CJNE    A,#'B',NOTB ; CALL SET RAM FUNCTION AND
+007A 1201C1           71                     LCALL   SET_RAM ; CALL READ RAM FUNCTION
+007D 80D4             72                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+007F                  73     NOTB:   
+007F B44305           74                     CJNE    A,#'C',NOTC ; CALL READ CLOCK FUNCTION
+0082 120289           75                     LCALL   READ_CLOCK
+0085 80CC             76                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+0087                  77     NOTC:   
+0087 B44405           78                     CJNE    A,#'D',NOTF ; CALL READ RAM FUNCTION
+008A 120203           79                     LCALL   READ_RAM
+008D 80C4             80                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+                      81     ;NOTD:  
+                      82                     ;CJNE   A,#'E',NOTE ; CALL OSC CONTROL FUNCTION
+                      83                     ;CLR    OSC ; CLR OSC FLAG - ON
+                      84                     ;LCALL  OSC_CONTROL
+                      85                     ;JMP    MASTER_CONTROLLER ; RETURN TO MAIN MENU
+                      86     ;NOTE:  
+                      87                     ;CJNE   A,#'F',NOTF ; CALL OSC CONTROL FUNCTION
+                      88                     ;SETB   OSC ; SET OSC FLAG - OFF
+                      89                     ;LCALL  OSC_CONTROL
+                      90                     ;JMP    MASTER_CONTROLLER ; RETURN TO MAIN MENU
+008F                  91     NOTF:   
+008F B44707           92                     CJNE    A,#'G',NOTG ; CALL SWQ CONTROL FUNCTION
+0092 C204             93                     CLR     SQW ; CLR SQW FLAG - ON
+0094 120366           94                     LCALL   SQW_CONTROL_1HZ
+0097 80BA             95                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+0099                  96     NOTG:   
+0099 B44807           97                     CJNE    A,#'H',NOTH ; CALL SWQ CONTROL FUNCTION
+009C C204             98                     CLR     SQW ; CLR SQW FLAG - ON
+009E 120381           99                     LCALL   SQW_CONTROL_4KHZ
+00A1 80B0            100                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+00A3                 101     NOTH:   
+00A3 B44907          102                     CJNE    A,#'I',NOTI ; CALL SWQ CONTROL FUNCTION
+00A6 C204            103                     CLR     SQW ; CLR SQW FLAG - ON
+00A8 12039C          104                     LCALL   SQW_CONTROL_8KHZ
+00AB 80A6            105                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+00AD                 106     NOTI:   
+00AD B44A07          107                     CJNE    A,#'J',NOTJ ; CALL SWQ CONTROL FUNCTION
+00B0 C204            108                     CLR     SQW ; CLR SQW FLAG - ON
+00B2 1203B7          109                     LCALL   SQW_CONTROL_32KHZ
+00B5 809C            110                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+00B7                 111     NOTJ:   
+00B7 B44B07          112                     CJNE    A,#'K',NOTK ; CALL SWQ CONTROL FUNCTION
+00BA D204            113                     SETB    SQW ; SET SQW FLAG - OFF
+00BC 120366          114                     LCALL   SQW_CONTROL_1HZ
+00BF 8092            115                     JMP     MASTER_CONTROLLER
+00C1                 116     NOTK: 
+00C1 B44C08          117                     CJNE    A,#'L',NOTL
+00C4 1201E8          118                     LCALL   SET_RAM_UNQ
+00C7 120203          119                     LCALL   READ_RAM
+00CA 8087            120                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+                     121     ;ADDED FOR EEPROM
+00CC                 122      NOTL:
+00CC B44D05          123                     CJNE    A,#'M',NOTM ; CALL SET EPROM FUNCTION AND
+00CF 1203D2          124                     LCALL   SET_EPROM ; CALL READ EPROM FUNCTION
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     3
+
+                     125                     ;LCALL  READ_EPROM
+00D2 0153            126                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+00D4                 127      NOTM:
+00D4 B44E03          128                     CJNE    A,#'N',NOTN ; CALL READ RAM FUNCTION
+00D7 1203F9          129                     LCALL   READ_EPROM
+                     130       ;...............................
+00DA                 131      NOTN:  
+00DA 0153            132                     JMP     MASTER_CONTROLLER ; RETURN TO MAIN MENU
+                     133     ;-----------------------------------------------------------------------
+                     134     ; THIS SUB SENDS THE START CONDITION
+                     135     ;-----------------------------------------------------------------------
+00DC                 136     SEND_START: ;
+00DC D207            137                     SETB    _2W_BUSY ; INDICATE THAT 2WIRE OPERATION IN PROGRESS
+00DE C205            138                     CLR     ACK ; CLEAR STATUS FLAGS
+00E0 C206            139                     CLR     BUS_FAULT
+00E2 308010          140                     JNB     SCL,FAULT ; CHECK FOR BUS CLEAR
+00E5 30810D          141                     JNB     SDA,FAULT ; BEGIN START CONDITION
+00E8 D281            142                     SETB    SDA ;
+00EA 120149          143                     LCALL   SCL_HIGH ; SDA
+00ED C281            144                     CLR     SDA
+                     145     ;
+00EF 12014F          146                     LCALL   DELAY ; SCL ^START CONDITION
+00F2 C280            147                     CLR     SCL
+00F4 22              148                     RET
+00F5                 149     FAULT:
+00F5 D206            150                     SETB    BUS_FAULT ; SET FAULT STATUS
+00F7 22              151                     RET ; AND RETURN
+                     152     ;-----------------------------------------------------------------------
+                     153     ; THIS SUB SENDS THE STOP CONDITION
+                     154     ;-----------------------------------------------------------------------
+00F8                 155     SEND_STOP: ;
+00F8 C281            156                     CLR     SDA ; SDA
+00FA 120149          157                     LCALL   SCL_HIGH ;
+00FD D281            158                     SETB    SDA ; SCL ^STOP CONDITION
+00FF C207            159                     CLR     _2W_BUSY
+0101 22              160                     RET
+                     161     ;-----------------------------------------------------------------------
+                     162     ; THIS SUB SENDS ONE BYTE OF DATA TO THE DS1307
+                     163     ;-----------------------------------------------------------------------
+0102                 164     SEND_BYTE:
+0102 752108          165                     MOV     BITCOUNT,#08H ; SET COUNTER FOR 8 BITS
+0105                 166     SB_LOOP:
+0105 30E704          167                     JNB     ACC.7,NOTONE ; CHECK TO SEE IF BIT 7 OF ACC IS A 1
+0108 D281            168                     SETB    SDA ; SET SDA HIGH (1)
+010A 8002            169                     JMP     ONE
+010C                 170     NOTONE:
+010C C281            171                     CLR     SDA ; CLR SDA LOW (0)
+010E                 172     ONE:
+010E 120149          173                     LCALL   SCL_HIGH ; TRANSITION SCL LOW-TO-HIGH
+0111 23              174                     RL              A ; ROTATE ACC LEFT ONE BIT
+0112 C280            175                     CLR     SCL ; TRANSITION SCL HIGH-TO-LOW
+0114 D521EE          176                     DJNZ    BITCOUNT,SB_LOOP ; LOOP FOR 8 BITS
+0117 D281            177                     SETB    SDA ; SET SDA HIGH TO LOOK FOR ACKNOWLEDGE PULSE
+0119 120149          178                     LCALL   SCL_HIGH ; TRASITION SCL LOW-TO-HIGH
+011C C205            179                     CLR     ACK ; CLEAR ACKNOWLEDGE FLAG
+011E 308102          180                     JNB     SDA,SB_EX ; CHECK FOR ACK OR NOT ACK
+0121 D205            181                     SETB    ACK ; SET ACKNOWLEDGE FLAG FOR NOT ACK
+0123                 182     SB_EX:
+0123 12014F          183                     LCALL   DELAY ; DELAY FOR AN OPERATION
+0126 C280            184                     CLR     SCL ; TRANSITION SCL HIGH-TO-LOW
+0128 12014F          185                     LCALL   DELAY ; DELAY FOR AN OPERATION
+012B 22              186                     RET
+                     187     ;-----------------------------------------------------------------------
+                     188     ; THIS SUB READS ONE BYTE OF DATA FROM THE DS1307
+                     189     ;-----------------------------------------------------------------------
+012C                 190     READ_BYTE:
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     4
+
+012C 752108          191                     MOV     BITCOUNT,#008H ; SET COUNTER FOR 8 BITS OF DATA
+012F 7400            192                     MOV     A,#00H ;
+0131 D281            193                     SETB    SDA ; SET SDA HIGH TO ENSURE LINE FREE
+0133                 194     READ_BITS:
+0133 120149          195                     LCALL   SCL_HIGH ; TRANSITION SCL LOW-TO-HIGH
+0136 A281            196                     MOV     C,SDA ; MOVE DATA BIT INTO CARRY BIT \
+0138 33              197                     RLC     A ; ROTATE CARRY BIT INTO ACC.0
+0139 C280            198                     CLR     SCL ; TRANSITION SCL HIGH-TO-LOW
+013B D521F5          199                     DJNZ    BITCOUNT,READ_BITS ; LOOP FOR 8 BITS
+013E 200002          200                     JB              LASTREAD,ACKN ; CHECK TO SEE IF THIS IS THE LAST READ
+0141 C281            201                     CLR     SDA ; IF NOT LAST READ SEND ACKNOWLEDGE BIT
+0143                 202     ACKN:
+0143 120149          203                     LCALL   SCL_HIGH ; PULSE SCL TO TRANSIMIT ACKNOWLEDGE
+0146 C280            204                     CLR     SCL ; OR NOT ACKNOWLEDGE BIT
+0148 22              205                     RET
+                     206     ;----------------------------------------------------------------------- ;
+                     207     ; THIS SUB SETS THE CLOCK LINE HIGH
+                     208     ;-----------------------------------------------------------------------
+0149                 209     SCL_HIGH:
+0149 D280            210                     SETB    SCL ; SET SCL HIGH
+014B 3080FD          211                     JNB     SCL,$ ; LOOP UNTIL STRONG 1 ON SCL
+014E 22              212                     RET
+                     213     ;----------------------------------------------------------------------- ;
+                     214     ; THIS SUB DELAY THE BUS
+                     215     ;-----------------------------------------------------------------------
+014F                 216     DELAY:
+014F 00              217                     NOP ; DELAY FOR BUS TIMING
+0150 22              218                     RET
+                     219     ;-----------------------------------------------------------------------
+                     220     ; THIS SUB DELAYS 4 CYCLES
+                     221     ;-----------------------------------------------------------------------
+0151                 222     DELAY_4:
+0151 00              223                     NOP ; DELAY FOR BUS TIMING
+0152 00              224                     NOP
+0153 00              225                     NOP
+0154 00              226                     NOP
+0155 22              227                     RET
+                     228     ;-----------------------------------------------------------------------
+                     229     ; THIS SUB SETS THE CLOCK (MANUAL)
+                     230     ;-----------------------------------------------------------------------
+0156                 231     SET_CLOCKM:
+0156 792E            232                     MOV     R1,#2EH ; SET R1 TO SCRATCHPAD MEMORY FOR DATE/TIME
+0158 9004DD          233                     MOV     DPTR, #YEAR ; GET THE DATE/TIME INFORMATION FROM THE
+015B 1204CD          234                     LCALL   WRITE_TEXT ; USER. WRITE THE DATE/TIME TO SCRATCHPAD
+015E 120476          235                     LCALL   READ_BCD ; MEMORY
+0161 F7              236                     MOV     @R1,A
+0162 19              237                     DEC     R1
+0163 9004F0          238                     MOV     DPTR, #MONTH
+0166 1204CD          239                     LCALL   WRITE_TEXT
+0169 120476          240                     LCALL   READ_BCD
+016C F7              241                     MOV     @R1,A
+016D 19              242                     DEC     R1
+016E 900504          243                     MOV     DPTR, #DAY
+0171 1204CD          244                     LCALL   WRITE_TEXT
+0174 120476          245                     LCALL   READ_BCD
+0177 F7              246                     MOV     @R1,A
+0178 19              247                     DEC     R1
+0179 900516          248                     MOV     DPTR, #DAYW
+017C 1204CD          249                     LCALL   WRITE_TEXT
+017F 120476          250                     LCALL   READ_BCD
+0182 5407            251                     ANL     A, #7
+0184 F7              252                     MOV     @R1,A
+0185 19              253                     DEC     R1
+0186 900527          254                     MOV     DPTR, #HOUR
+0189 1204CD          255                     LCALL   WRITE_TEXT
+018C 120476          256                     LCALL   READ_BCD
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     5
+
+018F F7              257                     MOV     @R1,A
+0190 19              258                     DEC     R1
+0191 90053A          259                     MOV     DPTR, #MINUTE
+0194 1204CD          260                     LCALL   WRITE_TEXT
+0197 120476          261                     LCALL   READ_BCD
+019A F7              262                     MOV     @R1,A
+019B 19              263                     DEC     R1
+019C 90054F          264                     MOV     DPTR, #SECOND
+019F 1204CD          265                     LCALL   WRITE_TEXT
+01A2 120476          266                     LCALL   READ_BCD
+01A5 F7              267                     MOV     @R1,A
+01A6 7928            268                     MOV     R1,#28H ; POINT TO BEGINNING OF CLOCK DATA IN SCRATCHPAD MEMORY
+01A8 1200DC          269                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+01AB 74D0            270                     MOV     A,#DS1307W ; SEND DS1307 WRITE COMMAND
+01AD 120102          271                     LCALL   SEND_BYTE
+01B0 7400            272                     MOV     A,#00H ; SET DATA POINTER TO REGISTER 00H ON
+01B2 120102          273                     LCALL   SEND_BYTE ; THE DS1307
+01B5                 274     SEND_LOOP:
+01B5 E7              275                     MOV     A,@R1 ; MOVE THE FIRST BYTE OF DATA TO ACC
+01B6 120102          276                     LCALL   SEND_BYTE ; SEND DATA ON 2WIRE BUT
+01B9 09              277                     INC     R1
+01BA B92FF8          278                     CJNE    R1,#2FH,SEND_LOOP ; LOOP UNTIL CLOCK DATA SENT TO DS1307
+01BD 1200F8          279                     LCALL   SEND_STOP ; SEND 2WIRE STOP CONDITION
+01C0 22              280                     RET
+                     281     ;-----------------------------------------------------------------------
+                     282     ; THIS SUB SETS THE DS1307 USER RAM TO THE VALUE IN 'BYTE'
+                     283     ;-----------------------------------------------------------------------
+01C1                 284     SET_RAM:
+01C1 7908            285                     MOV     R1,#08H ; POINTER TO BEGINNING OF DS1307 USER RAM
+01C3 90075F          286                     MOV     DPTR, #TEXT5 ; MESSAGE TO ENTER DATA BYTE
+01C6 1204CD          287                     LCALL   WRITE_TEXT ;
+01C9 120476          288                     LCALL   READ_BCD ; READ BYTE FROM KEYBOARD
+01CC F523            289                     MOV     BYTE,A ; AND STORE IN 'BYTE'
+01CE 1200DC          290                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+01D1 74D0            291                     MOV     A,#DS1307W ; LOAD DS1307 WRITE COMMAND
+01D3 120102          292                     LCALL   SEND_BYTE ; SEND WRITE COMMAND
+01D6 7408            293                     MOV     A,#08H ; SET DS1307 DATA POINTER TO BEGINNING
+01D8 120102          294                     LCALL   SEND_BYTE ; OF USER RAM - 08H
+01DB                 295     SEND_LOOP2:
+01DB E523            296                     MOV     A,BYTE ; WRITE BYTE TO ENTIRE RAM SPACE
+01DD 120102          297                     LCALL   SEND_BYTE ; WHICH IS 08H TO 37H
+01E0 09              298                     INC     R1
+01E1 B940F7          299                     CJNE    R1,#040H,SEND_LOOP2 ; LOOP UNTIL RAM FILLED
+01E4 1200F8          300                     LCALL   SEND_STOP ; SEND 2WIRE STOP CONTION
+01E7 22              301                     RET
+                     302     ;-----------------------------------------------------------------------
+                     303     ; THIS SUB SETS THE DS1307 USER RAM TO THE UNIQUE PATTERN
+                     304     ;-----------------------------------------------------------------------
+01E8                 305     SET_RAM_UNQ:
+01E8 7908            306                     MOV     R1,#08H ; POINTER TO BEGINNING OF DS1307 USER RAM
+01EA 1200DC          307                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+01ED 74D0            308                     MOV     A,#DS1307W ; LOAD DS1307 WRITE COMMAND
+01EF 120102          309                     LCALL   SEND_BYTE ; SEND WRITE COMMAND
+01F2 7408            310                     MOV     A,#08H ; SET DS1307 DATA POINTER TO BEGINNING
+01F4 120102          311                     LCALL   SEND_BYTE ; OF USER RAM - 08H
+01F7                 312     SEND_LOOP3:
+01F7 120102          313                     LCALL   SEND_BYTE ; WHICH IS 08H TO 37H
+01FA 09              314                     INC     R1
+01FB 04              315                     INC     A
+01FC B940F8          316                     CJNE    R1,#040H,SEND_LOOP3 ; LOOP UNTIL RAM FILLED
+01FF 1200F8          317                     LCALL   SEND_STOP ; SEND 2WIRE STOP CONTION
+0202 22              318                     RET
+                     319     ;-----------------------------------------------------------------------
+                     320     ; THIS SUB READS THE DS1307 RAM AND WRITES IT TO THE SCRATCH PAD MEMORY
+                     321     ;-----------------------------------------------------------------------
+0203                 322     READ_RAM:
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     6
+
+0203 900743          323                     MOV     DPTR,#TEXT4 ; SEND KEY PRESS MSG
+0206 1204CD          324                     LCALL   WRITE_TEXT
+0209 7930            325                     MOV     R1,#30H ; START OF RAM REGS IN SCRATCH PAD
+020B 752200          326                     MOV     BYTECOUNT,#00H ; COUNTER FOR 56 RAM BYTES
+020E C200            327                     CLR     LASTREAD ; FLAG TO CHECK FOR LAST READ
+0210 1200DC          328                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+0213 74D0            329                     MOV     A,#DS1307W ; SEND DS1307 WRITE COMMAND
+0215 120102          330                     LCALL   SEND_BYTE
+0218 7408            331                     MOV     A,#08H ; SET POINTER TO REG 08H ON DS1307
+021A 120102          332                     LCALL   SEND_BYTE
+021D 1200F8          333                     LCALL   SEND_STOP ; SEND STOP CONDITION
+0220 1200DC          334                     LCALL   SEND_START ; SEND START CONDITION
+0223 74D1            335                     MOV     A,#DS1307R ; SEND DS1307 READ COMMAND
+0225 120102          336                     LCALL   SEND_BYTE
+0228                 337     READ_LOOP2:
+0228 E522            338                     MOV     A,BYTECOUNT ; CHECK TO SEE OF DOING LAST READ
+022A B43702          339                     CJNE    A,#37H,NOT_LAST2
+022D D200            340                     SETB    LASTREAD ; IF LAST READ SET LASTREAD FLAG
+022F                 341     NOT_LAST2:
+022F 12012C          342                     LCALL   READ_BYTE ; READ A BYTE OF DATA
+0232 F7              343                     MOV     @R1,A ; MOVE DATA INTO SCRATCHPAD MEMORY
+0233 09              344                     INC     R1 ; INC POINTERS
+0234 0522            345                     INC     BYTECOUNT
+0236 E522            346                     MOV     A,BYTECOUNT
+0238 B438ED          347                     CJNE    A,#38H,READ_LOOP2 ; LOOP FOR ENTIRE DS1307 RAM
+023B 1200F8          348                     LCALL    SEND_STOP ; SEND 2WIRE STOP CONDITION
+023E 120247          349                     LCALL   DISP_RAM ; DISPLAY DATA IN SCRATCHPAD MEMORY
+0241 3098FD          350                     JNB     RI,$ ;WAIT UNTIL A KEY IS PRESSED
+0244 C298            351                     CLR     RI
+0246 22              352                     RET
+                     353     ;-----------------------------------------------------------------------
+                     354     ; THIS SUB DISPLAYS THE RAM DATA SAVED IN SCRATCHPAD MEMORY
+                     355     ;-----------------------------------------------------------------------
+0247                 356     DISP_RAM:
+0247 7930            357                     MOV     R1,#30H ;START OF RAM IN SCRATCHPAD MEMORY
+0249 752100          358                     MOV     BITCOUNT,#00H
+024C 900790          359                     MOV     DPTR,#TEXT6 ;DISPLAY TABLE HEADING
+024F 1204CD          360                     LCALL   WRITE_TEXT
+0252                 361     DISP_ADDR:
+0252 120273          362                     LCALL   DISP_LOC ; DISPLAY VALUE OF CURRENT RAM LOCATION
+0255                 363     DIS_LOOP:
+0255 E7              364                     MOV     A,@R1 ; DISPLAY RAM DATA SAVED IN SCRATCHPAD
+0256 120495          365                     LCALL   WRITE_BCD ; CONVERT TO BCD FORMAT AND DISPLAY
+0259 09              366                     INC     R1
+025A 0521            367                     INC     BITCOUNT
+025C 7420            368                     MOV     A,#20H ; SPACE BETWEEN DATA BYTES
+025E 1204C5          369                     LCALL   WRITE_DATA
+0261 E521            370                     MOV     A,BITCOUNT
+0263 B408EF          371                     CJNE    A,#08H,DIS_LOOP ; LINE FEED AFTER 8 BYTES OF DATA
+0266 752100          372                     MOV     BITCOUNT,#00H
+0269 900740          373                     MOV     DPTR,#TEXT3 ; 'CR,LF'
+026C 1204CD          374                     LCALL   WRITE_TEXT
+026F B968E0          375                     CJNE    R1,#68H,DISP_ADDR ; DISPLAY DATA FOR 56 BYTES OF RAM
+0272 22              376                     RET
+                     377     ;----------------------------------------------------------------------- ;
+                     378     ; THIS SUB WRITES THE RAM LOCATION OF THE DATA
+                     379     ;-----------------------------------------------------------------------
+0273                 380     DISP_LOC:
+0273 E9              381                     MOV     A,R1 ; DISPLAY THE HEX VALUE FOR THE DATA
+0274 24D8            382                     ADD     A,#-28H ; IN THE DS1307 RAM SPACE
+0276                 383     E_DISP_LOC:
+0276 120495          384                     LCALL   WRITE_BCD ; CONVERTS SCRATCHPAD ADDRESS
+0279 7420            385                     MOV     A,#20H ; INTO DS1307 RAM ADDRESS
+027B 1204C5          386                     LCALL   WRITE_DATA
+027E 7420            387                     MOV     A,#20H
+0280 1204C5          388                     LCALL   WRITE_DATA
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     7
+
+0283 7420            389                     MOV     A,#20H
+0285 1204C5          390                     LCALL   WRITE_DATA
+0288 22              391                     RET
+                     392      ; THIS SUB READS THE CLOCK AND WRITES IT TO THE SCRATCH PAD MEMORY ;
+0289                 393     READ_CLOCK:
+0289 900743          394                     MOV     DPTR,#TEXT4 ; KEY PRESS MSG
+028C 1204CD          395                     LCALL   WRITE_TEXT
+028F                 396     READ_AGAIN:
+028F 7928            397                     MOV     R1,#28H ; START OF CLOCK REG IN SCRATCHPAD
+0291 752200          398                     MOV     BYTECOUNT,#00H ; COUNTER UP TO 8 BYTES FOR CLOCK
+0294 C200            399                     CLR     LASTREAD ; FLAG TO CHECK FOR LAST READ
+0296 1200DC          400                     LCALL   SEND_START ; SEND START CONDITION
+0299 74D0            401                     MOV     A,#DS1307W ; SET POINTER TO REG 00H ON DS1307
+029B 120102          402                     LCALL   SEND_BYTE
+029E 7400            403                     MOV     A,#00H
+02A0 120102          404                     LCALL   SEND_BYTE
+02A3 1200F8          405                     LCALL   SEND_STOP ; SEND STOP CONDITION
+02A6 1200DC          406                     LCALL   SEND_START ; SEND START CONDITION
+02A9 74D1            407                     MOV     A,#DS1307R ; SEND READ COMMAND TO DS1307
+02AB 120102          408                     LCALL   SEND_BYTE
+02AE                 409     READ_LOOP:
+02AE E522            410                     MOV     A,BYTECOUNT ; CHECK TO SEE OF DOING LAST READ
+02B0 B40702          411                     CJNE    A,#07H,NOT_LAST
+02B3 D200            412                     SETB    LASTREAD ; SET LASTREAD FLAG
+02B5                 413     NOT_LAST:
+02B5 12012C          414                     LCALL   READ_BYTE ; READ A BYTE OF DATA
+02B8 F7              415                     MOV     @R1,A ; MOVE DATA IN SCRATCHPAD MEMORY
+02B9 E522            416                     MOV     A,BYTECOUNT ; CHECK TO SEE IF READING SECONDS REG
+02BB B4000B          417                     CJNE    A,#00H,NOT_FIRST
+02BE C203            418                     CLR     OSC ; CLR OSC FLAG
+02C0 E7              419                     MOV     A,@R1 ; MOVE SECONDS REG INTO ACC
+02C1 30E705          420                     JNB     ACC.7,NO_OSC ; JUMP IF BIT 7 OF IS A 0
+02C4 D203            421                     SETB    OSC ; SET OSC FLAG, BIT 7 IS A 1
+02C6 C2E7            422                     CLR     ACC.7 ; CLEAR BIT 7 FOR DISPLAY PURPOSES
+02C8 F7              423                     MOV     @R1,A ; MOVE DATA BACK TO SCRATCHPAD
+02C9                 424     NO_OSC:
+02C9                 425     NOT_FIRST:
+02C9 09              426                     INC     R1 ; INC COUNTERS
+02CA 0522            427                     INC     BYTECOUNT
+02CC E522            428                     MOV     A,BYTECOUNT
+02CE B408DD          429                     CJNE    A,#08H,READ_LOOP ; LOOP FOR ENTIRE CLOCK REGISTERS
+02D1 1200F8          430                     LCALL   SEND_STOP ; SEND 2WIRE STOP CONDITION
+02D4 1202DD          431                     LCALL   DISP_CLOCK ; DISPLAY DATE/TIME FROM SCRATCHPAD
+02D7 3098B5          432                     JNB     RI,READ_AGAIN ; READ AND DISPLAY UNTIL A KEY IS PRESSED
+02DA C298            433                     CLR     RI
+02DC 22              434                     RET
+                     435     ;-----------------------------------------------------------------------
+                     436     ; THIS SUB DISPLAYS THE DATE AND TIME SAVED IN SCRATCHPAD MEMORY
+                     437     ;-----------------------------------------------------------------------
+02DD                 438     DISP_CLOCK:
+02DD 900731          439                     MOV     DPTR,#TEXT1 ; DATE:
+02E0 1204CD          440                     LCALL   WRITE_TEXT
+02E3 792D            441                     MOV     R1,#2DH ; MONTH
+02E5 E7              442                     MOV     A,@R1
+02E6 120495          443                     LCALL   WRITE_BCD
+02E9 742F            444                     MOV     A,#'/'
+02EB 1204C5          445                     LCALL   WRITE_DATA
+02EE 792C            446                     MOV     R1,#2CH ; DATE
+02F0 E7              447                     MOV     A,@R1
+02F1 120495          448                     LCALL   WRITE_BCD
+02F4 742F            449                     MOV     A,#'/'
+02F6 1204C5          450                     LCALL   WRITE_DATA
+02F9 792E            451                     MOV     R1,#2EH ; YEAR
+02FB E7              452                     MOV     A,@R1
+02FC 120495          453                     LCALL   WRITE_BCD
+02FF 7409            454                     MOV     A,#09H ; TAB
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     8
+
+0301 1204C5          455                     LCALL   WRITE_DATA
+0304 900739          456                     MOV     DPTR,#TEXT2 ; TIME:
+0307 1204CD          457                     LCALL   WRITE_TEXT
+030A 792A            458                     MOV     R1,#2AH ; HOURS
+030C E7              459                     MOV     A,@R1
+030D 120495          460                     LCALL   WRITE_BCD
+0310 743A            461                     MOV     A,#3AH ; COLON
+0312 1204C5          462                     LCALL   WRITE_DATA
+0315 7929            463                     MOV     R1,#29H ; MINUTES
+0317 E7              464                     MOV     A,@R1
+0318 120495          465                     LCALL   WRITE_BCD
+031B 743A            466                     MOV     A,#3AH ; COLON
+031D 1204C5          467                     LCALL   WRITE_DATA
+0320 7928            468                     MOV     R1,#28H ; SECONDS
+0322 E7              469                     MOV     A,@R1
+0323 120495          470                     LCALL   WRITE_BCD
+0326 22              471                     RET
+                     472     ;-----------------------------------------------------------------------
+                     473     ; THIS SUB SETS THE OSCILLATOR ACCORDING TO THE OSC BIT
+                     474     ;-----------------------------------------------------------------------
+0327                 475     OSC_CONTROL:
+0327 1200DC          476                     LCALL   SEND_START ; SEND START CONDITION
+032A 74D0            477                     MOV     A,#DS1307W ; SET POINTER TO REG 00H ON DS1307
+032C 120102          478                     LCALL   SEND_BYTE
+032F 7400            479                     MOV     A,#00H
+0331 120102          480                     LCALL   SEND_BYTE
+0334 D200            481                     SETB    LASTREAD ; SET LAST READ FOR SINGLE READ
+0336 1200F8          482                     LCALL   SEND_STOP ; SEND STOP CONDITION
+0339 1200DC          483                     LCALL   SEND_START ; SEND START CONDITION
+033C 74D1            484                     MOV     A,#DS1307R ; SEND READ COMMAND TO DS1307
+033E 120102          485                     LCALL   SEND_BYTE
+0341 12012C          486                     LCALL   READ_BYTE ; READ SECONDS REGISTER
+0344 C2E7            487                     CLR     ACC.7 ; TURN OSC ON
+0346 300302          488                     JNB     OSC,OSC_SET
+0349 D2E7            489                     SETB    ACC.7 ; TURN OSC OFF IF OSC BIT IS SET IN
+034B                 490     OSC_SET:                        ; SECONDS REGISTER
+034B C0E0            491                     PUSH    ACC ; SAVE SECONDS DATA ON STACK
+034D 1200F8          492                     LCALL   SEND_STOP ; SEND STOP CONDITION
+0350 1200DC          493                     LCALL   SEND_START ; SEND START CONDITION
+0353 74D0            494                     MOV     A,#DS1307W ; SET POINTER TO REG 00H ON DS1307
+0355 120102          495                     LCALL   SEND_BYTE
+0358 7400            496                     MOV     A,#00H
+035A 120102          497                     LCALL   SEND_BYTE
+035D D0E0            498                     POP     ACC ; SEND SECONDS REGISTER TO CONTROL
+035F 120102          499                     LCALL   SEND_BYTE ; OSCILLATOR ON DS1307
+0362 1200F8          500                     LCALL   SEND_STOP
+0365 22              501                     RET
+                     502     ;-----------------------------------------------------------------------
+                     503     ; THIS SUB CONTROLS THE SQW OUTPUT 1HZ
+                     504     ;-----------------------------------------------------------------------
+0366                 505     SQW_CONTROL_1HZ:
+0366 1200DC          506                     LCALL   SEND_START ; SEND START CONDITION
+0369 74D0            507                     MOV     A,#DS1307W ; SET POINTER TO REG 07H ON DS1307
+036B 120102          508                     LCALL   SEND_BYTE
+036E 7407            509                     MOV     A,#07H
+0370 120102          510                     LCALL   SEND_BYTE
+0373 7490            511                     MOV     A,#90H ; SQW/OUT ON AT 1HZ
+0375 300402          512                     JNB     SQW,SQW_SET ; JUMP IF SQW BIT IS ACTIVE
+0378 7480            513                     MOV     A,#80H ; TURN SQW/OUT OFF - OFF HIGH
+037A                 514     SQW_SET:
+037A 120102          515                     LCALL   SEND_BYTE
+037D 1200F8          516                     LCALL   SEND_STOP
+0380 22              517                     RET
+                     518     ;-----------------------------------------------------------------------
+                     519     ; THIS SUB CONTROLS THE SQW OUTPUT 4KHZ
+                     520     ;-----------------------------------------------------------------------
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE     9
+
+0381                 521     SQW_CONTROL_4KHZ:
+0381 1200DC          522                     LCALL   SEND_START ; SEND START CONDITION
+0384 74D0            523                     MOV     A,#DS1307W ; SET POINTER TO REG 07H ON DS1307
+0386 120102          524                     LCALL   SEND_BYTE
+0389 7407            525                     MOV     A,#07H
+038B 120102          526                     LCALL   SEND_BYTE
+038E 7491            527                     MOV     A,#91H ; SQW/OUT ON AT 1HZ
+0390 300402          528                     JNB     SQW,SQW_SET1 ; JUMP IF SQW BIT IS ACTIVE
+0393 7480            529                     MOV     A,#80H ; TURN SQW/OUT OFF - OFF HIGH
+0395                 530     SQW_SET1:
+0395 120102          531                     LCALL   SEND_BYTE
+0398 1200F8          532                     LCALL   SEND_STOP
+039B 22              533                     RET
+                     534     ;-----------------------------------------------------------------------
+                     535     ; THIS SUB CONTROLS THE SQW OUTPUT 8KHZ
+                     536     ;-----------------------------------------------------------------------
+039C                 537     SQW_CONTROL_8KHZ:
+039C 1200DC          538                     LCALL   SEND_START ; SEND START CONDITION
+039F 74D0            539                     MOV     A,#DS1307W ; SET POINTER TO REG 07H ON DS1307
+03A1 120102          540                     LCALL   SEND_BYTE
+03A4 7407            541                     MOV     A,#07H
+03A6 120102          542                     LCALL   SEND_BYTE
+03A9 7492            543                     MOV     A,#92H ; SQW/OUT ON AT 1HZ
+03AB 300402          544                     JNB     SQW,SQW_SET2 ; JUMP IF SQW BIT IS ACTIVE
+03AE 7480            545                     MOV     A,#80H ; TURN SQW/OUT OFF - OFF HIGH
+03B0                 546     SQW_SET2:
+03B0 120102          547                     LCALL   SEND_BYTE
+03B3 1200F8          548                     LCALL   SEND_STOP
+03B6 22              549                     RET
+                     550     ;-----------------------------------------------------------------------
+                     551     ; THIS SUB CONTROLS THE SQW OUTPUT 32KHZ
+                     552     ;-----------------------------------------------------------------------
+03B7                 553     SQW_CONTROL_32KHZ:
+03B7 1200DC          554                     LCALL   SEND_START ; SEND START CONDITION
+03BA 74D0            555                     MOV     A,#DS1307W ; SET POINTER TO REG 07H ON DS1307
+03BC 120102          556                     LCALL   SEND_BYTE
+03BF 7407            557                     MOV     A,#07H
+03C1 120102          558                     LCALL   SEND_BYTE
+03C4 7493            559                     MOV     A,#93H ; SQW/OUT ON AT 1HZ
+03C6 300402          560                     JNB     SQW,SQW_SET3 ; JUMP IF SQW BIT IS ACTIVE
+03C9 7480            561                     MOV     A,#80H ; TURN SQW/OUT OFF - OFF HIGH
+03CB                 562     SQW_SET3:
+03CB 120102          563                     LCALL   SEND_BYTE
+03CE 1200F8          564                     LCALL   SEND_STOP
+03D1 22              565                     RET
+                     566     ;*************************************
+                     567     ; ADD EEPROM ROUTINES HERE..............
+03D2                 568       SET_EPROM:
+03D2 7900            569                     MOV     R1,#00H ; POINTER TO BEGINNING OF AT24C08 
+03D4 9007BD          570                     MOV     DPTR, #TEXT7 ; MESSAGE TO ENTER DATA BYTE
+03D7 1204CD          571                     LCALL   WRITE_TEXT ;
+03DA 120476          572                     LCALL   READ_BCD ; READ BYTE FROM KEYBOARD
+03DD F523            573                     MOV     BYTE,A ; AND STORE IN 'BYTE'
+03DF 1200DC          574                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+                     575             ;CHANGE THE FOLOW LINE FOR EPROM--
+03E2 74A0            576                     MOV     A,#AT24C08W ; LOAD AT24C08 WRITE COMMAND
+03E4 120102          577                     LCALL   SEND_BYTE ; SEND WRITE COMMAND
+03E7 7400            578                     MOV     A,#00H ; SET DS1307 DATA POINTER TO BEGINNING
+03E9 120102          579                     LCALL   SEND_BYTE ; OF USER RAM - 08H
+03EC                 580     E_SEND_LOOP2:
+03EC E523            581                     MOV     A,BYTE ; WRITE BYTE TO ENTIRE RAM SPACE
+03EE 120102          582                     LCALL   SEND_BYTE ; WHICH IS 08H TO 37H
+03F1 09              583                     INC     R1
+03F2 B940F7          584                     CJNE    R1,#040H,E_SEND_LOOP2 ; LOOP UNTIL RAM FILLED
+03F5 1200F8          585                     LCALL   SEND_STOP ; SEND 2WIRE STOP CONTION
+03F8 22              586                     RET
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    10
+
+                     587     ;-----------------------------------------------------------------------
+                     588     ; THIS SUB READS THE EEPROM AND WRITES IT TO THE SCRATCH PAD MEMORY
+                     589     ;-----------------------------------------------------------------------
+03F9                 590     READ_EPROM:
+03F9 900743          591                     MOV     DPTR,#TEXT4 ; SEND KEY PRESS MSG
+03FC 1204CD          592                     LCALL   WRITE_TEXT
+03FF 7930            593                     MOV     R1,#30H ; START OF RAM REGS IN SCRATCH PAD
+0401 752200          594                     MOV     BYTECOUNT,#00H ; COUNTER FOR 56 RAM BYTES
+0404 C200            595                     CLR     LASTREAD ; FLAG TO CHECK FOR LAST READ
+0406 1200DC          596                     LCALL   SEND_START ; SEND 2WIRE START CONDITION
+0409 74A0            597                     MOV     A,#AT24C08W ; SEND AT24C08 WRITE COMMAND
+040B 120102          598                     LCALL   SEND_BYTE
+040E 7400            599                     MOV     A,#00H ; SET POINTER TO REG 08H ON DS1307
+0410 120102          600                     LCALL   SEND_BYTE
+0413 1200F8          601                     LCALL   SEND_STOP ; SEND STOP CONDITION
+0416 1200DC          602                     LCALL   SEND_START ; SEND START CONDITION
+0419 74A1            603                     MOV     A,#AT24C08R ; SEND AT24C08 READ COMMAND
+041B 120102          604                     LCALL   SEND_BYTE
+041E                 605     E_READ_LOOP2:
+041E E522            606                     MOV     A,BYTECOUNT ; CHECK TO SEE OF DOING LAST READ
+0420 B43702          607                     CJNE    A,#37H,E_NOT_LAST2
+0423 D200            608                     SETB    LASTREAD ; IF LAST READ SET LASTREAD FLAG
+0425                 609     E_NOT_LAST2:
+0425 12012C          610                     LCALL   READ_BYTE ; READ A BYTE OF DATA
+0428 F7              611                     MOV     @R1,A ; MOVE DATA INTO SCRATCHPAD MEMORY
+0429 09              612                     INC     R1 ; INC POINTERS
+042A 0522            613                     INC     BYTECOUNT
+042C E522            614                     MOV     A,BYTECOUNT
+042E B438ED          615                     CJNE    A,#38H,E_READ_LOOP2 ; LOOP FOR ENTIRE DS1307 RAM
+0431 1200F8          616                     LCALL    SEND_STOP ; SEND 2WIRE STOP CONDITION
+0434 12043D          617                     LCALL   E_DISP_RAM ; DISPLAY DATA IN SCRATCHPAD MEMORY
+0437 3098FD          618                     JNB     RI,$ ;WAIT UNTIL A KEY IS PRESSED
+043A C298            619                     CLR     RI
+043C 22              620                     RET
+                     621      ;-----------------------------------------------------------------------
+                     622     ; THIS SUB DISPLAYS THE EPROM DATA SAVED IN SCRATCHPAD MEMORY
+                     623     ;-----------------------------------------------------------------------
+043D                 624     E_DISP_RAM:
+043D 7930            625                     MOV     R1,#30H ;START OF RAM IN SCRATCHPAD MEMORY
+043F 752100          626                     MOV     BITCOUNT,#00H
+0442 900790          627                     MOV     DPTR,#TEXT6 ;DISPLAY TABLE HEADING
+0445 1204CD          628                     LCALL   WRITE_TEXT
+0448                 629     E_DISP_ADDR:
+0448 E9              630                     MOV     A,R1 ; DISPLAY THE HEX VALUE FOR THE DATA
+0449 24D0            631                     ADD     A,#-30H ; IN THE DS1307 RAM SPACE
+044B 120276          632                     LCALL   E_DISP_LOC ; DISPLAY VALUE OF CURRENT RAM LOCATION
+044E                 633     E_DIS_LOOP:
+044E E7              634                     MOV     A,@R1 ; DISPLAY RAM DATA SAVED IN SCRATCHPAD
+044F 120495          635                     LCALL   WRITE_BCD ; CONVERT TO BCD FORMAT AND DISPLAY
+0452 09              636                     INC     R1
+0453 0521            637                     INC     BITCOUNT
+0455 7420            638                     MOV     A,#20H ; SPACE BETWEEN DATA BYTES
+0457 1204C5          639                     LCALL   WRITE_DATA
+045A E521            640                     MOV     A,BITCOUNT
+045C B408EF          641                     CJNE    A,#08H,E_DIS_LOOP ; LINE FEED AFTER 8 BYTES OF DATA
+045F 752100          642                     MOV     BITCOUNT,#00H
+0462 900740          643                     MOV     DPTR,#TEXT3 ; 'CR,LF'
+0465 1204CD          644                     LCALL   WRITE_TEXT
+0468 B940DD          645                     CJNE    R1,#40H,E_DISP_ADDR ; DISPLAY DATA FOR 16 BYTES OF RAM
+046B 22              646                     RET
+                     647     
+                     648     ; THIS SUB IS A SCOPE TRIGGER BIT
+046C                 649     TRIGGER:
+046C C282            650             CLR     TRIG
+046E D282            651             SETB    TRIG
+0470 120151          652             LCALL   DELAY_4
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    11
+
+0473 C282            653             CLR     TRIG
+0475 22              654             RET
+                     655     ; THIS SUB READS DATA FROM THE SCREEN AND CONVERTS IT TO BCD FORM
+                     656     ; DATA SHOULD BE HEX DIGITS: 1,2,3...9,A,B,C,D,E,F
+0476                 657     READ_BCD:
+0476 7800            658                     MOV     R0,#0 ; CLEAR R0
+0478                 659     BCD_LOOP:
+0478 1204BD          660                     LCALL   READ_DATA ; READ BYTE FROM KEYBOARD
+047B 1204C5          661                     LCALL   WRITE_DATA ; WRITE BYTE BACK TO SCREEN
+047E B40D02          662                     CJNE    A, #0DH, BCD ; CHECK FOR CR
+0481 E8              663                     MOV     A,R0 ; MOVE R0 TO ACC AND RETURN
+0482 22              664                     RET
+0483                 665     BCD:
+0483 24D0            666                     ADD     A,#-30H ; BEGIN TO CONVERT TO ACTUAL VALUE
+0485 30E402          667                     JNB     ACC.4,DIGIT ; JUMP IF NOT A-F
+0488 24F9            668                     ADD     A,#-07H ; IF A-F SUBTRACT 7
+048A                 669     DIGIT:
+048A 540F            670                     ANL     A,#0FH ; ENSURE BITS 4-7 ARE CLEARED
+048C 53000F          671                     ANL     0,#0FH ; ENSURE BITS 4-7 ARE CLEARED
+048F C8              672                     XCH     A,R0 ; EXCHANGE R0 AND ACC
+0490 C4              673                     SWAP    A ; NIBBLE SWAP ACC
+0491 48              674                     ORL     A,R0 ; INSERT BITS 0-3 OF R0 INTO ACC
+0492 F8              675                     MOV     R0,A ; MOVE ACC INTO R0
+0493 80E3            676                     SJMP    BCD_LOOP ; LOOP UNTIL CR ENCOUNTERED
+                     677     ;-----------------------------------------------------------------------
+                     678     ; THIS SUB WRITES THE BYTE TO THE SCREEN
+                     679     ;-----------------------------------------------------------------------
+0495                 680     WRITE_BCD:
+0495 C0E0            681                     PUSH    ACC ; SAVE ACC ON STACK
+0497 C4              682                     SWAP    A ; NIBBLE SWAP ACC
+0498 540F            683                     ANL     A,#0FH ; CLEAR BITS 4-7 OF ACC
+049A 2407            684                     ADD     A,#07H ; ADD 7 TO ACC TO CONVERT TO ASCII HEX
+049C 30E403          685                     JNB     ACC.4,LESSNINE ; CHECK TO SEE IF LESS THAN NINE 0-8
+049F B41002          686                     CJNE    A,#10H,NOTNINE ; JUMP IS GREATER THAN NINE A-F
+04A2                 687     LESSNINE:
+04A2 24F9            688                     ADD     A,#-07H ; SUBTRACT 7 FOR 0-9
+04A4                 689     NOTNINE:
+04A4 2430            690                     ADD     A,#30H ; ADD 30 TO CONVERT TO ASCII EQUIVALENT
+04A6 1204C5          691                     LCALL   WRITE_DATA ; WRITE BYTE TO SCREEN
+04A9 D0E0            692                     POP     ACC ; RECALL ACC FROM STACK
+04AB 540F            693                     ANL     A,#0FH ; PERFORM CONVERSION ON OTHER HALF OF BYTE
+04AD 2407            694                     ADD     A,#07H
+04AF 30E403          695                     JNB     ACC.4,NINE2
+04B2 B41002          696                     CJNE    A,#10H,NOTNINE2
+04B5                 697     NINE2:
+04B5 24F9            698                     ADD     A,#-07H
+04B7                 699     NOTNINE2:
+04B7 2430            700                     ADD     A,#30H
+04B9 1204C5          701                     LCALL   WRITE_DATA
+04BC 22              702                     RET
+                     703     ;-----------------------------------------------------------------------
+04BD                 704     READ_DATA:
+04BD 3098FD          705                     JNB     RI,READ_DATA ; LOOP WHILE RI BIT IS LOW
+04C0 C298            706                     CLR     RI ;
+04C2 E599            707                     MOV     A,SBUF ; GET DATA BYTE FROM SERIAL BUFFER
+04C4 22              708                     RET
+                     709     ;-----------------------------------------------------------------------
+04C5                 710     WRITE_DATA:
+04C5 3099FD          711                     JNB     TI,WRITE_DATA ; LOOP WHILE TI BIT IS LOW
+04C8 C299            712                     CLR     TI ;
+04CA F599            713                     MOV     SBUF,A ; SEND DATA BYTE TO SERIAL BUFFER
+04CC 22              714                     RET
+                     715     ;-----------------------------------------------------------------------
+04CD                 716     WRITE_TEXT:
+04CD C0E0            717                     PUSH    ACC ; SAVE ACC BYTE ON STACK
+04CF                 718     WT1:
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    12
+
+04CF E4              719                     CLR     A ; CLEAR ACC
+04D0 93              720                     MOVC    A,@A+DPTR ; MOVE FIRST BYTE OF STRING  TO ACC
+04D1 A3              721                     INC     DPTR ; INC DATA POINTER
+04D2 B40003          722                     CJNE    A,#0,WT2 ; CHECK FOR STRING TERMINATOR - 0
+04D5 D0E0            723                     POP     ACC     ; RESTORE ACC
+04D7 22              724                     RET             ; RETURN WHEN STRING IS SENT
+04D8                 725     WT2:
+04D8 1204C5          726                     LCALL   WRITE_DATA ; SEND BYTE OF STRING OVER SERIAL PORT
+04DB 80F2            727                     SJMP    WT1
+                     728     ; TEXT STRINGS USED FOR USER INTERFACE OVER SERIAL PORT
+04DD                 729     YEAR:
+04DD 0D0A5945        730                     DB              CR,LF,'YEAR (0 - 99) : ',0
+04E1 41522028                
+04E5 30202D20                
+04E9 39392920                
+04ED 3A2000                  
+04F0                 731     MONTH:
+04F0 0D0A4D4F        732                     DB              CR,LF,'MONTH (1 - 12) : ',0
+04F4 4E544820                
+04F8 2831202D                
+04FC 20313229                
+0500 203A2000                
+0504                 733     DAY:
+0504 0D0A4441        734                     DB              CR,LF,'DAY OF MONTH : ',0
+0508 59204F46                
+050C 204D4F4E                
+0510 5448203A                
+0514 2000                    
+0516                 735     DAYW:
+0516 0D0A4441        736                     DB              CR,LF,'DAY OF WEEK : ',0
+051A 59204F46                
+051E 20574545                
+0522 4B203A20                
+0526 00                      
+0527                 737     HOUR:
+0527 0D0A484F        738                     DB              CR,LF,'HOUR (0 - 23) : ',0
+052B 55522028                
+052F 30202D20                
+0533 32332920                
+0537 3A2000                  
+053A                 739     MINUTE:
+053A 0D0A4D49        740                     DB              CR,LF,'MINUTE (0 - 59) : ',0
+053E 4E555445                
+0542 20283020                
+0546 2D203539                
+054A 29203A20                
+054E 00                      
+054F                 741     SECOND:
+054F 0D0A5345        742                     DB              CR,LF,'SECOND (0 - 59) : ',0
+0553 434F4E44                
+0557 20283020                
+055B 2D203539                
+055F 29203A20                
+0563 00                      
+0564                 743     TRIER:
+0564 0D0A5052        744                     DB CR,LF,'PRESS ANY KEY TO SET THIS TIME ',CR,LF,0
+0568 45535320                
+056C 414E5920                
+0570 4B455920                
+0574 544F2053                
+0578 45542054                
+057C 48495320                
+0580 54494D45                
+0584 200D0A00                
+0588                 745     TEXT0:
+0588 0D0A2A2A        746                     DB CR,LF,'******* DYNALOG INDIA LIMITED ******* ',CR,LF
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    13
+
+058C 2A2A2A2A                
+0590 2A204459                
+0594 4E414C4F                
+0598 4720494E                
+059C 44494120                
+05A0 4C494D49                
+05A4 54454420                
+05A8 2A2A2A2A                
+05AC 2A2A2A20                
+05B0 0D0A                    
+05B2 0D0A2044        747                     DB CR,LF,' DYNA-PIO-RTC-EEPROM DEMO PROGRAM ',CR,LF
+05B6 594E412D                
+05BA 50494F2D                
+05BE 5254432D                
+05C2 45455052                
+05C6 4F4D2044                
+05CA 454D4F20                
+05CE 50524F47                
+05D2 52414D20                
+05D6 0D0A                    
+05D8 0D0A2050        748                     DB CR,LF,' PLEASE CHOOSE AN OPTION TO CONTINUE '
+05DC 4C454153                
+05E0 45204348                
+05E4 4F4F5345                
+05E8 20414E20                
+05EC 4F505449                
+05F0 4F4E2054                
+05F4 4F20434F                
+05F8 4E54494E                
+05FC 554520                  
+05FF 0D0A2D2D        749                     DB CR,LF,'------------------------------------ '
+0603 2D2D2D2D                
+0607 2D2D2D2D                
+060B 2D2D2D2D                
+060F 2D2D2D2D                
+0613 2D2D2D2D                
+0617 2D2D2D2D                
+061B 2D2D2D2D                
+061F 2D2D2D2D                
+0623 2D2D20                  
+0626 0D0A412E        750                     DB CR,LF,'A. SET TIME(MANUAL)'
+062A 20534554                
+062E 2054494D                
+0632 45284D41                
+0636 4E55414C                
+063A 29                      
+063B 0D0A422E        751                     DB CR,LF,'B. SET DS1307 RAM '
+063F 20534554                
+0643 20445331                
+0647 33303720                
+064B 52414D20                
+064F 0D0A432E        752                     DB CR,LF,'C. READ DATE/TIME'
+0653 20524541                
+0657 44204441                
+065B 54452F54                
+065F 494D45                  
+0662 0D0A442E        753                     DB CR,LF,'D. READ DS1307 RAM '
+0666 20524541                
+066A 44204453                
+066E 31333037                
+0672 2052414D                
+0676 20                      
+                     754                     ;DB CR,LF,'E. OSC ON ' 
+                     755                     ;DB CR,LF,'F. OSC OFF '
+0677 0D0A472E        756                     DB CR,LF,'G. SQW/OUT ON-1HZ '
+067B 20535157                
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    14
+
+067F 2F4F5554                
+0683 204F4E2D                
+0687 31485A20                
+068B 0D0A482E        757                     DB CR,LF,'H. SQW/OUT ON-4KHZ'
+068F 20535157                
+0693 2F4F5554                
+0697 204F4E2D                
+069B 344B485A                
+069F 0D0A492E        758                     DB CR,LF,'I. SQW/OUT ON-8KHZ ' 
+06A3 20535157                
+06A7 2F4F5554                
+06AB 204F4E2D                
+06AF 384B485A                
+06B3 20                      
+06B4 0D0A4A2E        759                     DB CR,LF,'J. SQW/OUT ON-32KHZ' 
+06B8 20535157                
+06BC 2F4F5554                
+06C0 204F4E2D                
+06C4 33324B48                
+06C8 5A                      
+06C9 0D0A4B2E        760                     DB CR,LF,'K. SQW/OUT OFF'
+06CD 20535157                
+06D1 2F4F5554                
+06D5 204F4646                
+06D9 0D0A4C2E        761                     DB CR,LF,'L. WRITE RAM UNIQUE PATTERN '
+06DD 20575249                
+06E1 54452052                
+06E5 414D2055                
+06E9 4E495155                
+06ED 45205041                
+06F1 54544552                
+06F5 4E20                    
+06F7 0D0A4D2E        762                     DB CR,LF,'M. SET AT24C08 ROM '
+06FB 20534554                
+06FF 20415432                
+0703 34433038                
+0707 20524F4D                
+070B 20                      
+070C 0D0A4E2E        763                     DB CR,LF,'N. READ AT24C08 ROM'    
+0710 20524541                
+0714 44204154                
+0718 32344330                
+071C 3820524F                
+0720 4D                      
+0721 0D0A4553        764                     DB CR,LF,'ESC. TO QUIT ',0
+0725 432E2054                
+0729 4F205155                
+072D 49542000                
+0731                 765     TEXT1:
+0731 0D444154        766                     DB CR,'DATE: ',0
+0735 453A2000                
+0739                 767     TEXT2:
+0739 54494D45        768                     DB 'TIME: ',0
+073D 3A2000                  
+0740                 769     TEXT3:
+0740 0D0A00          770                     DB CR,LF,0
+0743                 771     TEXT4:
+0743 0D0A5052        772                     DB CR,LF,'PRESS ANY KEY TO RETURN'
+0747 45535320                
+074B 414E5920                
+074F 4B455920                
+0753 544F2052                
+0757 45545552                
+075B 4E                      
+075C 0D0A00          773                     DB CR,LF,0
+075F                 774     TEXT5:
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    15
+
+075F 0D0A454E        775                     DB CR,LF,'ENTER THE BYTE VALUE WHICH WILL FILL THE RAM'
+0763 54455220                
+0767 54484520                
+076B 42595445                
+076F 2056414C                
+0773 55452057                
+0777 48494348                
+077B 2057494C                
+077F 4C204649                
+0783 4C4C2054                
+0787 48452052                
+078B 414D                    
+078D 0D0A00          776                     DB CR,LF,0
+0790                 777     TEXT6:
+0790 0D0A4144        778                     DB CR,LF,'ADDR DATA'
+0794 44522044                
+0798 415441                  
+079B 0D0A2D2D        779                     DB CR,LF,'-----------------------------'
+079F 2D2D2D2D                
+07A3 2D2D2D2D                
+07A7 2D2D2D2D                
+07AB 2D2D2D2D                
+07AF 2D2D2D2D                
+07B3 2D2D2D2D                
+07B7 2D2D2D                  
+07BA 0D0A00          780                     DB CR,LF,0
+07BD                 781     TEXT7:
+07BD 0D0A454E        782                     DB CR,LF,'ENTER THE BYTE VALUE WHICH WILL FILL 16 BYTES OF THE AT24C08 ROM 
+                             '
+07C1 54455220                
+07C5 54484520                
+07C9 42595445                
+07CD 2056414C                
+07D1 55452057                
+07D5 48494348                
+07D9 2057494C                
+07DD 4C204649                
+07E1 4C4C2031                
+07E5 36204259                
+07E9 54455320                
+07ED 4F462054                
+07F1 48452041                
+07F5 54323443                
+07F9 30382052                
+07FD 4F4D20                  
+0800 0D0A00          783                     DB CR,LF,0
+                     784     
+                     785     END
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    16
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+ACK. . . . . . . .  B ADDR   0020H.5 A   
+ACKN . . . . . . .  C ADDR   0143H   A   
+AT24C08R . . . . .  N NUMB   00A1H   A   
+AT24C08W . . . . .  N NUMB   00A0H   A   
+BCD. . . . . . . .  C ADDR   0483H   A   
+BCD_LOOP . . . . .  C ADDR   0478H   A   
+BITCOUNT . . . . .  D ADDR   0021H   A   
+BUS_FAULT. . . . .  B ADDR   0020H.6 A   
+BYTE . . . . . . .  D ADDR   0023H   A   
+BYTECOUNT. . . . .  D ADDR   0022H   A   
+CR . . . . . . . .  N NUMB   000DH   A   
+DAY. . . . . . . .  C ADDR   0504H   A   
+DAYW . . . . . . .  C ADDR   0516H   A   
+DELAY. . . . . . .  C ADDR   014FH   A   
+DELAY_4. . . . . .  C ADDR   0151H   A   
+DIGIT. . . . . . .  C ADDR   048AH   A   
+DISP_ADDR. . . . .  C ADDR   0252H   A   
+DISP_CLOCK . . . .  C ADDR   02DDH   A   
+DISP_LOC . . . . .  C ADDR   0273H   A   
+DISP_RAM . . . . .  C ADDR   0247H   A   
+DIS_LOOP . . . . .  C ADDR   0255H   A   
+DS1307R. . . . . .  N NUMB   00D1H   A   
+DS1307W. . . . . .  N NUMB   00D0H   A   
+E_DISP_ADDR. . . .  C ADDR   0448H   A   
+E_DISP_LOC . . . .  C ADDR   0276H   A   
+E_DISP_RAM . . . .  C ADDR   043DH   A   
+E_DIS_LOOP . . . .  C ADDR   044EH   A   
+E_NOT_LAST2. . . .  C ADDR   0425H   A   
+E_READ_LOOP2 . . .  C ADDR   041EH   A   
+E_SEND_LOOP2 . . .  C ADDR   03ECH   A   
+FAULT. . . . . . .  C ADDR   00F5H   A   
+FLAGS. . . . . . .  D ADDR   0020H   A   
+FORM_FEED. . . . .  C ADDR   0056H   A   
+HOUR . . . . . . .  C ADDR   0527H   A   
+IE . . . . . . . .  D ADDR   00A8H   A   
+LASTREAD . . . . .  B ADDR   0020H.0 A   
+LESSNINE . . . . .  C ADDR   04A2H   A   
+LF . . . . . . . .  N NUMB   000AH   A   
+MASTER_CONTROLLER.  C ADDR   0053H   A   
+MCON . . . . . . .  N NUMB   00C6H   A   
+MINUTE . . . . . .  C ADDR   053AH   A   
+MONTH. . . . . . .  C ADDR   04F0H   A   
+NINE2. . . . . . .  C ADDR   04B5H   A   
+NOTA . . . . . . .  C ADDR   0077H   A   
+NOTB . . . . . . .  C ADDR   007FH   A   
+NOTC . . . . . . .  C ADDR   0087H   A   
+NOTF . . . . . . .  C ADDR   008FH   A   
+NOTG . . . . . . .  C ADDR   0099H   A   
+NOTH . . . . . . .  C ADDR   00A3H   A   
+NOTI . . . . . . .  C ADDR   00ADH   A   
+NOTJ . . . . . . .  C ADDR   00B7H   A   
+NOTK . . . . . . .  C ADDR   00C1H   A   
+NOTL . . . . . . .  C ADDR   00CCH   A   
+NOTM . . . . . . .  C ADDR   00D4H   A   
+NOTN . . . . . . .  C ADDR   00DAH   A   
+NOTNINE. . . . . .  C ADDR   04A4H   A   
+NOTNINE2 . . . . .  C ADDR   04B7H   A   
+NOTONE . . . . . .  C ADDR   010CH   A   
+NOT_FIRST. . . . .  C ADDR   02C9H   A   
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    17
+
+NOT_LAST . . . . .  C ADDR   02B5H   A   
+NOT_LAST2. . . . .  C ADDR   022FH   A   
+NO_OSC . . . . . .  C ADDR   02C9H   A   
+ONE. . . . . . . .  C ADDR   010EH   A   
+OSC. . . . . . . .  B ADDR   0020H.3 A   
+OSC_CONTROL. . . .  C ADDR   0327H   A   
+OSC_SET. . . . . .  C ADDR   034BH   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+PCON . . . . . . .  D ADDR   0087H   A   
+PM_AM. . . . . . .  B ADDR   0020H.2 A   
+READ_AGAIN . . . .  C ADDR   028FH   A   
+READ_BCD . . . . .  C ADDR   0476H   A   
+READ_BITS. . . . .  C ADDR   0133H   A   
+READ_BYTE. . . . .  C ADDR   012CH   A   
+READ_CLOCK . . . .  C ADDR   0289H   A   
+READ_DATA. . . . .  C ADDR   04BDH   A   
+READ_EPROM . . . .  C ADDR   03F9H   A   
+READ_LOOP. . . . .  C ADDR   02AEH   A   
+READ_LOOP2 . . . .  C ADDR   0228H   A   
+READ_RAM . . . . .  C ADDR   0203H   A   
+RI . . . . . . . .  B ADDR   0098H.0 A   
+SBUF . . . . . . .  D ADDR   0099H   A   
+SB_EX. . . . . . .  C ADDR   0123H   A   
+SB_LOOP. . . . . .  C ADDR   0105H   A   
+SCL. . . . . . . .  B ADDR   0080H.0 A   
+SCL_HIGH . . . . .  C ADDR   0149H   A   
+SCON . . . . . . .  D ADDR   0098H   A   
+SDA. . . . . . . .  B ADDR   0080H.1 A   
+SECOND . . . . . .  C ADDR   054FH   A   
+SEND_BYTE. . . . .  C ADDR   0102H   A   
+SEND_LOOP. . . . .  C ADDR   01B5H   A   
+SEND_LOOP2 . . . .  C ADDR   01DBH   A   
+SEND_LOOP3 . . . .  C ADDR   01F7H   A   
+SEND_START . . . .  C ADDR   00DCH   A   
+SEND_STOP. . . . .  C ADDR   00F8H   A   
+SET_CLOCKM . . . .  C ADDR   0156H   A   
+SET_EPROM. . . . .  C ADDR   03D2H   A   
+SET_RAM. . . . . .  C ADDR   01C1H   A   
+SET_RAM_UNQ. . . .  C ADDR   01E8H   A   
+SP . . . . . . . .  D ADDR   0081H   A   
+SQW. . . . . . . .  B ADDR   0020H.4 A   
+SQW_CONTROL_1HZ. .  C ADDR   0366H   A   
+SQW_CONTROL_32KHZ.  C ADDR   03B7H   A   
+SQW_CONTROL_4KHZ .  C ADDR   0381H   A   
+SQW_CONTROL_8KHZ .  C ADDR   039CH   A   
+SQW_SET. . . . . .  C ADDR   037AH   A   
+SQW_SET1 . . . . .  C ADDR   0395H   A   
+SQW_SET2 . . . . .  C ADDR   03B0H   A   
+SQW_SET3 . . . . .  C ADDR   03CBH   A   
+START. . . . . . .  C ADDR   0030H   A   
+TA . . . . . . . .  N NUMB   00C7H   A   
+TCON . . . . . . .  D ADDR   0088H   A   
+TEXT0. . . . . . .  C ADDR   0588H   A   
+TEXT1. . . . . . .  C ADDR   0731H   A   
+TEXT2. . . . . . .  C ADDR   0739H   A   
+TEXT3. . . . . . .  C ADDR   0740H   A   
+TEXT4. . . . . . .  C ADDR   0743H   A   
+TEXT5. . . . . . .  C ADDR   075FH   A   
+TEXT6. . . . . . .  C ADDR   0790H   A   
+TEXT7. . . . . . .  C ADDR   07BDH   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TI . . . . . . . .  B ADDR   0098H.1 A   
+TL1. . . . . . . .  D ADDR   008BH   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TRIER. . . . . . .  C ADDR   0564H   A   
+TRIG . . . . . . .  B ADDR   0080H.2 A   
+A51 MACRO ASSEMBLER  RTCEPRMPC                                                            08/08/2011 13:55:06 PAGE    18
+
+TRIGGER. . . . . .  C ADDR   046CH   A   
+WRITE_BCD. . . . .  C ADDR   0495H   A   
+WRITE_DATA . . . .  C ADDR   04C5H   A   
+WRITE_TEXT . . . .  C ADDR   04CDH   A   
+WT1. . . . . . . .  C ADDR   04CFH   A   
+WT2. . . . . . . .  C ADDR   04D8H   A   
+YEAR . . . . . . .  C ADDR   04DDH   A   
+_12_24 . . . . . .  B ADDR   0020H.1 A   
+_2W_BUSY . . . . .  B ADDR   0020H.7 A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

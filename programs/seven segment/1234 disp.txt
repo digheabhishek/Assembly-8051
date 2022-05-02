@@ -1,0 +1,66 @@
+//Connection detail 
+1.	Connect port 1 of EB to port 1 of seven segment 
+2.	Connect port 3 of EB to port 2 of seven segment 
+//
+
+SEVEN SEGMENT 8-DIGIT COMMON CATHOD DISPLAY 
+               ZERO 	EQU 3fH
+	ONE	EQU 06H
+	TWO	EQU 5bH
+	THREE  	EQU 4fH
+	FOUR	EQU 66H
+	FIVE	EQU 6dH
+	SIX	EQU 7dH
+	SEVEN	EQU 07H
+	EIGHT	EQU 7fH
+	NINE	EQU 0e7H
+	; DOT:	EQU 7FH
+
+org 0000h
+start:      setb p1.0
+              clr p1.1
+              clr p1.2
+              clr p1.3
+              mov p2,#06h
+              call delay
+              setb p1.1
+              clr p1.0
+              clr p1.2
+              clr p1.3
+              mov p2,#5bh
+             call delay
+             setb p1.2
+             clr p1.0
+             clr p1.1
+             clr p1.3
+             mov p2,#4fh
+             call delay
+             setb p1.3
+            clr p1.0
+            clr p1.1
+            clr p1.2
+            mov p2,#66h
+call delay
+          sjmp start
+
+
+
+DELAYS:	       	 
+		MOV R5,#2 ;200ms delay
+	D1:
+		CALL DELAY
+		DJNZ R5,D1
+		RET
+				
+	DELAY:          ;100ms DELAY
+		MOV R7,#200
+	D2:								
+		MOV R6,#100
+	D3:	
+		NOP
+		NOP
+		NOP
+		DJNZ R6,D3
+		DJNZ R7,D2	
+		RET
+end

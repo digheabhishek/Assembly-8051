@@ -1,0 +1,20 @@
+Org 0000h
+Main: mov a, #05h
+          mov p0,a
+	  call delay
+	  mov a,#09h
+	  mov p0,a
+	  call delay
+	  mov a,#0ah
+	  mov p0,a
+	  call delay
+	  mov a,#06h
+	  mov p0,a
+	  call delay
+	  sjmp main
+delay: mov r0,#10h
+  l2:  mov r1,#0ffh
+  l1:  djnz r1,l1
+	   djnz r0,l2
+	   ret
+	   end

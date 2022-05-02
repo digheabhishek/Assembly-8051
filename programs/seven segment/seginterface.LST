@@ -1,0 +1,136 @@
+                        
+                        
+                        ;SEVEN SEGMENT 8-DIGIT COMMON ANODE DISPLAY 
+                                           	
+ 0000                   	CPU	"8051.TBL"	;Processor declaration
+ 0000                   	HOF	"INT8"		;Intel 8-bit hexcode
+                        
+ 003F =                 	ZERO: 	EQU 3fH
+ 0006 =                 	ONE:	EQU 06H
+ 005B =                 	TWO:	EQU 5bH
+ 004F =                 	THREE:  EQU 4fH
+ 0066 =                 	FOUR:	EQU 66H
+ 006D =                 	FIVE:	EQU 6dH
+ 007D =                 	SIX:	EQU 7dH
+ 0007 =                 	SEVEN:	EQU 07H
+ 007F =                 	EIGHT:	EQU 7fH
+ 00E7 =                 	NINE:	EQU 0e7H
+                        	;DOT:	EQU 7FH
+ 0077 =                 	adata:	equ 77h
+ 007C =                 	bdata:  equ 7ch
+ 0039 =                 	cdata:	equ 39h
+ 005E =                 	ddata:  equ 5eh
+ 0079 =                 	edata:	equ 79h
+ 0071 =                 	fdata:	equ 71h
+ 00A0 =                 	seg_port: equ 0a0h  ; port p2
+ 0090 =                 	digit_port: equ 90h ; port p1
+                        	
+ 0000                   	ORG 0000H
+                        	
+ 0000 75A000            		MOV seg_port,#00H
+ 0003 7590FF            		mov digit_port,#0ffh
+ 0006 74FE              		mov a,#0feh
+                        		
+ 0008 F590              LOOP:		mov digit_port,a
+ 000A 75A03F            		MOV seg_port,#ZERO
+ 000D 115D              		CALL DELAYS
+ 000F 75A006            		MOV seg_port,#ONE
+ 0012 115D              		CALL DELAYS
+                        
+ 0014 75A05B            		MOV seg_port,#TWO
+ 0017 115D              		CALL DELAYS
+                        
+ 0019 75A04F            		MOV seg_port,#THREE
+ 001C 115D              		CALL DELAYS
+                        
+ 001E 75A066            		MOV seg_port,#FOUR
+ 0021 115D              		CALL DELAYS
+                        
+ 0023 75A06D            		MOV seg_port,#FIVE
+ 0026 115D              		CALL DELAYS
+                        
+ 0028 75A07D            		MOV seg_port,#SIX
+ 002B 115D              		CALL DELAYS
+                        
+ 002D 75A007            		MOV seg_port,#SEVEN
+ 0030 115D              		CALL DELAYS
+                        
+ 0032 75A07F            		MOV seg_port,#EIGHT
+ 0035 115D              		CALL DELAYS
+                        
+ 0037 75A0E7            		MOV seg_port,#NINE
+ 003A 115D                 		CALL DELAYS
+                        
+                           		;MOV seg_port,#DOT
+                           		;CALL DELAYS
+                        
+ 003C 75A077            		MOV seg_port,#adata
+ 003F 115D                 		CALL DELAYS
+                        
+ 0041 75A07C            		MOV seg_port,#bdata
+ 0044 115D                 		CALL DELAYS
+                        
+ 0046 75A039            		MOV seg_port,#cdata
+ 0049 115D                 		CALL DELAYS
+                        
+ 004B 75A05E            		MOV seg_port,#ddata
+ 004E 115D                 		CALL DELAYS
+                        
+ 0050 75A079            		MOV seg_port,#edata
+ 0053 115D                 		CALL DELAYS
+                        
+ 0055 75A071            		MOV seg_port,#fdata
+ 0058 115D                 		CALL DELAYS
+                        
+ 005A 23                		rl  a	
+ 005B 0108                 		AJMP loop
+                           	
+ 005D                   DELAYS:	       	 
+ 005D 7D02              		MOV R5,#2 ;200ms delay
+ 005F                   	D1:
+ 005F 1164              		CALL DELAY
+ 0061 DDFC              		DJNZ R5,D1
+ 0063 22                		RET
+                        				
+ 0064                   	DELAY:          ;100ms DELAY
+ 0064 7FC8              		MOV R7,#200
+ 0066                   	D2:								
+ 0066 7E64              		MOV R6,#100
+ 0068                   	D3:	
+ 0068 00                		NOP
+ 0069 00                		NOP
+ 006A 00                		NOP
+ 006B DEFB              		DJNZ R6,D3
+ 006D DFF7              		DJNZ R7,D2	
+ 006F 22                		RET
+ 0070                   END
+                        
+ 0000                   	END
+00D6  AC                 00E0  ACC                0077  ADATA              
+00F0  B                  007C  BDATA              0039  CDATA              
+00D7  CY                 005F  D1                 0066  D2                 
+0068  D3                 005E  DDATA              0064  DELAY              
+005D  DELAYS             0090  DIGIT_PORT         0083  DPH                
+0082  DPL                00AF  EA                 0079  EDATA              
+007F  EIGHT              0070  END                00AC  ES                 
+00A9  ET0                00AB  ET1                00A8  EX0                
+00AA  EX1                00D5  F0                 0071  FDATA              
+006D  FIVE               0066  FOUR               0089  IE0                
+008B  IE1                00A8  IEC                00B8  IPC                
+0088  IT0                008A  IT1                0008  LOOP               
+00E7  NINE               0006  ONE                00D2  OV                 
+00D0  P                  0080  P0                 0090  P1                 
+00A0  P2                 00B0  P3                 0087  PCON               
+00BC  PS                 00D0  PSW                00B9  PT0                
+00BB  PT1                00B8  PX0                00BA  PX1                
+009A  RB8                009C  REN                0098  RI                 
+00D3  RS0                00D4  RS1                0099  SBUF               
+0098  SCON               00A0  SEG_PORT           0007  SEVEN              
+007D  SIX                009F  SM0                009E  SM1                
+009D  SM2                0081  SP                 009B  TB8                
+0088  TCON               008D  TF0                008F  TF1                
+008C  TH0                008D  TH1                004F  THREE              
+0099  TI                 008A  TL0                008B  TL1                
+0089  TMOD               008C  TR0                008E  TR1                
+005B  TWO                003F  ZERO               
+
