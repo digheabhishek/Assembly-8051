@@ -1,0 +1,294 @@
+A51 MACRO ASSEMBLER  ADC                                                                  08/05/2011 17:11:33 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.02
+OBJECT MODULE PLACED IN adc.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE adc.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     
+  0090                 2             START   EQU             P1.0            ; Pin 6 Start
+  00A0                 3             EOC             EQU             P2.0            ; Pin 7 EOC
+  0091                 4             OE              EQU             P1.1            ; Pin 9 Output Enable
+  0092                 5             ALE             EQU             P1.2            ; Pin 22 ALE
+  0080                 6             adata   EQU             P0                      ; Data Lines
+  00B0                 7             EN      EQU     P3.0
+  00B2                 8             RS      EQU     P3.2
+  00B1                 9             RW      EQU     P3.1                                         
+  00B0                10             DAT     EQU     P3       ;LCD 4-BITMODE
+                      11     
+0000                  12                     ORG 0000H
+0000 020030           13                     LJMP MAIN
+0030                  14                     ORG 0030H
+0030 00               15     MAIN:           NOP
+                      16                     
+0031 C2B1             17                     CLR             RW
+0033 12007E           18                     LCALL   LCD_INT
+0036 1200A6           19                     LCALL   CLEAR
+0039 1200D2           20                     LCALL   LINE1
+003C 90010E           21                     MOV     DPTR,#MYDATA
+003F 1200F0           22                     LCALL   LOOP
+0042 1200D8           23                     LCALL   LINE2
+0045 90011C           24                     MOV     DPTR,#MYDAT2
+0048 1200F0           25                     LCALL   LOOP
+004B 1200EA           26                     LCALL   LINE5
+004E 120127           27                     lcall   dispH
+0051 120130           28     again:  lcall   adconvert
+0054 1200DE           29                     LCALL   LINE3
+0057 1200FE           30                     lcall   adisph
+005A 1200E4           31                     LCALL   LINE4
+005D 120106           32                     lcall   adispl
+0060 80EF             33                     SJMP    again
+                      34     
+                      35     ;=========================================================================
+0062 C0E0             36     W_NIB:  PUSH    ACC             ;Save A for low nibble
+0064 43B0F0           37                     ORL     DAT,#0F0h       ;Bits 4..7 <- 1
+0067 440F             38                     ORL     A,#0Fh          ;Don't affect bits 0-3
+0069 52B0             39                     ANL     DAT,A           ;High nibble to display
+006B D2B0             40                     SETB    EN 
+006D C2B0             41                     CLR     EN 
+006F D0E0             42                     POP     ACC             ;Prepare to send
+0071 C4               43                     SWAP    A               ;...second nibble
+0072 43B0F0           44                     ORL     DAT,#0F0h       ; Bits 4...7 <- 1
+0075 440F             45                     ORL     A,#0Fh          ; Don't affect bits 0...3
+0077 52B0             46                     ANL     DAT,A           ;Low nibble to display
+0079 D2B0             47                     SETB    EN 
+007B C2B0             48                     CLR     EN 
+007D 22               49                     RET
+                      50     ;=========================================================================
+007E                  51     LCD_INT:
+007E C2B2             52                     CLR   RS
+0080 C2B1             53                     CLR   RW
+0082 C2B0             54                     CLR   EN
+0084 D2B0             55                     SETB  EN
+0086 75B028           56                     MOV   DAT,#028h
+0089 C2B0             57                     CLR   EN
+008B 1200B7           58                     LCALL SDELAY
+A51 MACRO ASSEMBLER  ADC                                                                  08/05/2011 17:11:33 PAGE     2
+
+008E 7428             59                     MOV   A,#28h
+0090 1200C9           60                     LCALL COM
+0093 740C             61                     MOV   A,#0Ch
+0095 1200C9           62                     LCALL COM
+0098 7406             63                     MOV   A,#06h
+009A 1200C9           64                     LCALL COM
+009D 1200A6           65                     LCALL CLEAR
+00A0 7480             66                     MOV A,#080H
+00A2 1200C9           67                     LCALL COM
+00A5 22               68                     RET
+                      69     ;=========================================================================
+00A6 C2B2             70     CLEAR:          CLR   RS
+00A8 7401             71                     MOV   A,#01h
+00AA 1200C9           72                     LCALL COM
+00AD 22               73                     RET
+                      74     
+                      75     ;=========================================================================
+00AE D2B2             76     DATAW:          SETB  RS
+                      77     
+00B0 120062           78                     LCALL W_NIB
+00B3 1200C0           79                     LCALL LDELAY
+00B6 22               80                     RET
+                      81     ;=========================================================================
+00B7 7E01             82     SDELAY:         MOV R6,#1                       
+00B9 7FFF             83     HERE2:          MOV R7,#255                     
+00BB DFFE             84     HERE:           DJNZ R7,HERE
+00BD DEFA             85                     DJNZ R6,HERE2
+00BF 22               86                     RET
+                      87     ;=========================================================================
+00C0 7E01             88     LDELAY:         MOV R6,#1                       
+00C2 7FFF             89     HER2:           MOV R7,#255                     
+00C4 DFFE             90     HER:            DJNZ R7,HER
+00C6 DEFA             91                     DJNZ R6,HER2
+00C8 22               92                     RET
+                      93     ;=========================================================================
+00C9 C2B2             94     COM:    CLR RS
+                      95     
+00CB 120062           96                     LCALL W_NIB
+00CE 1200B7           97                     LCALL SDELAY
+00D1 22               98                     RET
+                      99     ;=========================================================================
+00D2 7480            100     LINE1:          MOV A,#80H
+00D4 1200C9          101                     LCALL COM
+00D7 22              102                     RET
+00D8 74C0            103     LINE2:  MOV A,#0C0H
+00DA 1200C9          104                     LCALL COM
+00DD 22              105                     RET
+00DE 74C9            106     LINE3:  MOV A,#0c9H
+00E0 1200C9          107                     LCALL COM
+00E3 22              108                     RET
+00E4 74CA            109     LINE4:  MOV A,#0cah
+00E6 1200C9          110                     LCALL com       
+00E9 22              111                     RET
+00EA 74CB            112     LINE5:  MOV A,#0cbh
+00EC 1200C9          113                     LCALL com       
+00EF 22              114                     RET
+                     115     ;=========================================================================
+00F0 E4              116     LOOP:   CLR A
+00F1 93              117                     MOVC A,@A+DPTR
+00F2 6009            118                     JZ GO_B2
+00F4 1200AE          119                     LCALL DATAW
+00F7 1200B7          120                     LCALL SDELAY
+00FA A3              121                     INC DPTR
+00FB 80F3            122                     SJMP LOOP
+00FD 22              123     GO_B2:          RET
+                     124     
+A51 MACRO ASSEMBLER  ADC                                                                  08/05/2011 17:11:33 PAGE     3
+
+00FE                 125     ADisph: 
+00FE EB              126                     MOV a,r3
+00FF 1200AE          127                     LCALL DATAW
+0102 1200B7          128                     LCALL SDELAY
+0105 22              129                     ret
+0106                 130     ADispl: 
+0106 EC              131                     MOV a,r4
+0107 1200AE          132                     LCALL DATAW
+010A 1200B7          133                     LCALL SDELAY
+010D 22              134                     ret
+                     135     
+                     136     ;=========================================================================
+010E 2050494F        137     MYDATA:         DB " PIO-ADC-01  ",0
+0112 2D414443                
+0116 2D303120                
+011A 2000                    
+011C 20414443        138     MYDAT2:         DB " ADC i/p= ",0
+0120 20692F70                
+0124 3D2000                  
+0127                 139     dispH:  
+0127 7448            140                     MOV a,#48H  ;ascii for H
+0129 1200AE          141                     LCALL DATAW
+012C 1200B7          142                     LCALL SDELAY
+012F 22              143                     ret
+                     144     
+                     145     ;======================================================================
+0130                 146     adconvert:
+                     147     ;----------------------------------------------------------
+                     148     
+                     149     
+                     150     ;----------------------------------------------------------
+                     151             ; Read one byte of data from adc.
+                     152             ; Performs a analog conversion cycle.
+                     153             ; address of channel in register "ADDRESS",
+                     154             ; Returns data in BUFFER
+                     155             ; Destroys A.
+0130 7580FF          156                     MOV     adata,#0FFH             ; Data lines for input
+0133 D291            157                     SETB    OE              ; Disable output
+0135 D292            158                     SETB ALE                ; Latch the address
+0137 00              159                     NOP
+0138 00              160                     nop
+0139 00              161                     nop
+013A 00              162                     NOP
+013B D290            163                     SETB START              ; Start the conversion
+013D 00              164                     NOP
+013E 00              165                     NOP
+013F 00              166                     NOP
+0140 C290            167                     CLR START
+0142 00              168                     NOP
+0143 00              169                     NOP
+0144                 170             EOCLOOP:        
+0144 30A0FD          171                     JNB EOC, EOCLOOP        ; Do until EOC high
+0147 C291            172                     CLR OE          ; Output Enable
+0149 E580            173                     MOV a,adata     ; Get data in buffer
+014B D291            174                     SETB OE
+014D C292            175                     CLR ALE
+                     176                                                                               
+                     177     ;---------------------------------------------------------
+                     178     ; binary to ascii conversion            
+                     179     ;        
+                     180     ;*******************************************************************************
+014F F9              181                         mov   R1,a  
+0150 54F0            182                 anl   a,#0f0h      ; a=xxxx0000    ; A && #f0h (get the high nibble)
+0152 C4              183                 swap  a            ; a=0000xxxx    ; swap nibbles
+0153 4430            184                 orl   a,#30h       ; a=0011xxxx    ; add #30h, if nibble is
+0155 FA              185                     mov r2,a
+A51 MACRO ASSEMBLER  ADC                                                                  08/05/2011 17:11:33 PAGE     4
+
+0156 75F03A          186                         mov b, #3ah        ; stores #3ah in B
+0159 84              187                         div ab             ; divide A/#3ah
+015A 6006            188                 jz recupera1      ; if zero, nibble < #0Ah
+015C                 189     nibble1_ok:
+015C EA              190                 mov a,r2
+015D 2407            191                 add a, #07h        ; adds #07h to get ASCII of A-F
+015F FB              192                     mov  r3,a
+0160 8002            193                 jmp nibble2
+                     194                        
+0162                 195       recupera1:
+0162 EA              196                 mov a,r2
+0163 FB              197                             mov r3,a
+0164                 198             nibble2:
+0164 E9              199                             mov       a,r1  
+0165 540F            200                 anl   a,#0fh        ; a=0000xxxx    ; A && #0fh (get low nibble)
+0167 4430            201                 orl   a,#30h        ; a=0011xxxx    ; add #30h, if nibble is
+0169 FA              202                     mov   r2,a                      ; store acc. at Reg.R2
+016A 75F03A          203                         mov b, #3ah         ; stores #3ah in B
+016D 84              204                 div ab            ; divide A/#3ah
+016E 6005            205                 jz  recupera2        ; if zero, nibble < #0Ah
+0170 EA              206                 mov a,r2
+0171 2407            207                 add a, #07h        ; adds #07h to get ASCII of A-F
+0173 FC              208                 mov  r4,a
+0174 22              209                 ret                ; return to main routine
+0175                 210          recupera2:
+0175 EA              211                 mov a,r2
+0176 FC              212                             mov r4,a        
+0177 22              213                 ret                ; return to main routine
+                     214                             end
+A51 MACRO ASSEMBLER  ADC                                                                  08/05/2011 17:11:33 PAGE     5
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+ADATA. . . . . . .  D ADDR   0080H   A   
+ADCONVERT. . . . .  C ADDR   0130H   A   
+ADISPH . . . . . .  C ADDR   00FEH   A   
+ADISPL . . . . . .  C ADDR   0106H   A   
+AGAIN. . . . . . .  C ADDR   0051H   A   
+ALE. . . . . . . .  B ADDR   0090H.2 A   
+B. . . . . . . . .  D ADDR   00F0H   A   
+CLEAR. . . . . . .  C ADDR   00A6H   A   
+COM. . . . . . . .  C ADDR   00C9H   A   
+DAT. . . . . . . .  D ADDR   00B0H   A   
+DATAW. . . . . . .  C ADDR   00AEH   A   
+DISPH. . . . . . .  C ADDR   0127H   A   
+EN . . . . . . . .  B ADDR   00B0H.0 A   
+EOC. . . . . . . .  B ADDR   00A0H.0 A   
+EOCLOOP. . . . . .  C ADDR   0144H   A   
+GO_B2. . . . . . .  C ADDR   00FDH   A   
+HER. . . . . . . .  C ADDR   00C4H   A   
+HER2 . . . . . . .  C ADDR   00C2H   A   
+HERE . . . . . . .  C ADDR   00BBH   A   
+HERE2. . . . . . .  C ADDR   00B9H   A   
+LCD_INT. . . . . .  C ADDR   007EH   A   
+LDELAY . . . . . .  C ADDR   00C0H   A   
+LINE1. . . . . . .  C ADDR   00D2H   A   
+LINE2. . . . . . .  C ADDR   00D8H   A   
+LINE3. . . . . . .  C ADDR   00DEH   A   
+LINE4. . . . . . .  C ADDR   00E4H   A   
+LINE5. . . . . . .  C ADDR   00EAH   A   
+LOOP . . . . . . .  C ADDR   00F0H   A   
+MAIN . . . . . . .  C ADDR   0030H   A   
+MYDAT2 . . . . . .  C ADDR   011CH   A   
+MYDATA . . . . . .  C ADDR   010EH   A   
+NIBBLE1_OK . . . .  C ADDR   015CH   A   
+NIBBLE2. . . . . .  C ADDR   0164H   A   
+OE . . . . . . . .  B ADDR   0090H.1 A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . .  D ADDR   00B0H   A   
+RECUPERA1. . . . .  C ADDR   0162H   A   
+RECUPERA2. . . . .  C ADDR   0175H   A   
+RS . . . . . . . .  B ADDR   00B0H.2 A   
+RW . . . . . . . .  B ADDR   00B0H.1 A   
+SDELAY . . . . . .  C ADDR   00B7H   A   
+START. . . . . . .  B ADDR   0090H.0 A   
+W_NIB. . . . . . .  C ADDR   0062H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

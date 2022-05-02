@@ -1,0 +1,98 @@
+A51 MACRO ASSEMBLER  RLYBZLED                                                             08/03/2011 14:46:33 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN rlybzled.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE rlybzled.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;This programme demonstre to interface DYNA-PIO-LED-SW AND DYNA-PIO-RELAY-BUZZER BOARD.
+                       2     ; Connect the LED_SWitch board on Port1 and RLY-BZR board on Port2
+                       3     ; The Higher nibble of port1 is in output mode and Lower nibble is in input mode.
+                       4     ; The Push button (Select The jumper JP5,6,7,8) on LED-SWITCH borad is used to enable Relay
+                             ,led & Buzzer located on DYNA-PIO-buzzer board.
+                       5     ; The LEDs on Lower nibble (Select the jumpers JP1,2,3,4) on LED switch board shows the sta
+                             tus of opto and digital inputs from PIO-opto-buzzer board.
+                       6     ; Bit mode instructions are used in this demo.  
+                       7             ; BIT ASSIGNMENT FOR DYNA-PIO-LED-SW
+  0094                 8             BUZR_SW         BIT             P1.4
+  0095                 9             LED_SW          BIT             P1.5
+  0096                10             RLY_NO_SW       BIT             P1.6
+  0097                11             RLY_NC_SW       BIT             P1.7
+  0090                12             OPTO0_STS       BIT             P1.0
+  0091                13             OPTO1_STS       BIT             P1.1
+  0092                14             DIN0_STS        BIT             P1.2
+  0093                15             DIN1_STS        BIT             P1.3
+                      16             ;BIT ASSIGNMENT FOR DYNA-PIO-OPTO-RLY-BZR
+  00A2                17             BUZR_ON         BIT             P2.2
+  00A3                18             LED_ON          BIT             P2.3
+  00A0                19             RLY_NO_ON       BIT             P2.0
+  00A1                20             RLY_NC_ON       BIT             P2.1
+  00A6                21             OPTO0_IN        BIT             P2.6
+  00A7                22             OPTO1_IN        BIT             P2.7
+  00A4                23             DIN0            BIT             P2.4
+  00A5                24             DIN1            BIT             P2.5
+                      25             
+0100                  26                     ORG 0100H
+                      27                     
+0100 75A0FF           28                     MOV             P2,#0FFH
+0103 7590FF           29                     MOV             P1,#0FFH
+0106                  30             START:
+0106 A294             31                     MOV             C,BUZR_SW
+0108 92A2             32                     MOV             BUZR_ON,C
+010A A295             33                     MOV             C,LED_SW
+010C 92A3             34                     MOV             LED_ON,C
+010E A296             35                     MOV             C,RLY_NO_SW
+0110 92A0             36                     MOV             RLY_NO_ON,C
+0112 A297             37                     MOV             C,RLY_NC_SW
+0114 92A1             38                     MOV             RLY_NC_ON,C
+0116 A2A4             39                     MOV             C,DIN0
+0118 B3               40                     CPL             C
+0119 9292             41                     MOV             DIN0_STS,C
+011B A2A5             42                     MOV             C,DIN1
+011D B3               43                     CPL             C
+011E 9293             44                     MOV             DIN1_STS,C
+0120 A2A6             45                     MOV             C,OPTO0_IN
+0122 B3               46                     CPL             C
+0123 9290             47                     MOV             OPTO0_STS,C
+0125 A2A7             48                     MOV             C,OPTO1_IN
+0127 B3               49                     CPL             C
+0128 9291             50                     MOV             OPTO1_STS,C
+012A 80DA             51                     JMP             START
+                      52                     END
+                                                     
+                                                     
+A51 MACRO ASSEMBLER  RLYBZLED                                                             08/03/2011 14:46:33 PAGE     2
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+BUZR_ON. . . . . .  B ADDR   00A0H.2 A   
+BUZR_SW. . . . . .  B ADDR   0090H.4 A   
+DIN0 . . . . . . .  B ADDR   00A0H.4 A   
+DIN0_STS . . . . .  B ADDR   0090H.2 A   
+DIN1 . . . . . . .  B ADDR   00A0H.5 A   
+DIN1_STS . . . . .  B ADDR   0090H.3 A   
+LED_ON . . . . . .  B ADDR   00A0H.3 A   
+LED_SW . . . . . .  B ADDR   0090H.5 A   
+OPTO0_IN . . . . .  B ADDR   00A0H.6 A   
+OPTO0_STS. . . . .  B ADDR   0090H.0 A   
+OPTO1_IN . . . . .  B ADDR   00A0H.7 A   
+OPTO1_STS. . . . .  B ADDR   0090H.1 A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+RLY_NC_ON. . . . .  B ADDR   00A0H.1 A   
+RLY_NC_SW. . . . .  B ADDR   0090H.7 A   
+RLY_NO_ON. . . . .  B ADDR   00A0H.0 A   
+RLY_NO_SW. . . . .  B ADDR   0090H.6 A   
+START. . . . . . .  C ADDR   0106H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

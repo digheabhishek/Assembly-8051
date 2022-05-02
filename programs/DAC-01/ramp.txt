@@ -1,0 +1,19 @@
+org 0000h
+  
+mov p0,#00h
+   
+mov p1,#00h
+        
+mov p1,#01h
+ 
+up:   mov a,#00h
+ 
+next: mov p0,a
+      
+inc a
+       
+cjne a,#0ffh,next
+       
+ljmp up
+   
+end

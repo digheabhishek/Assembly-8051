@@ -1,0 +1,189 @@
+A51 MACRO ASSEMBLER  I2CDAC                                                               08/02/2011 17:34:32 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN i2cdac.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE i2cdac.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+0000                   1        ORG  0000H
+                       2     
+0000 806B              3             jmp     main
+                       4     
+                       5     ;I2C I/O...
+                       6             
+  0081                 7             SDA      EQU     P0.1
+  0080                 8             SCL      EQU     P0.0
+                       9     ; 
+                      10     ;Macros...
+                      11     ;
+                      12     ;Bit Delay
+0002                  13     Bit_Delay:      
+0002 00               14                     nop
+0003 00               15                     nop
+0004 22               16                     RET
+                      17     ;
+                      18     ;Set SCL
+0005                  19     Set_SCL:
+0005 D280             20                     setb    SCL
+0007 3080FD           21                     jnb     SCL,$
+000A 1102             22                     ACALL   Bit_Delay
+000C 22               23                     RET
+                      24     ;
+                      25     ;Clear SCL
+000D                  26     Clr_SCL:
+000D C280             27                     clr     SCL
+000F 1102             28                     ACALL   Bit_Delay
+0011 22               29                     RET
+                      30     ;
+                      31     ;Pulse SCL
+0012                  32     Emit_Clock:     
+0012 1105             33                     ACALL Set_SCL
+0014 110D             34                     ACALL Clr_SCL
+0016 22               35                     RET
+                      36     ;
+                      37     ;Start Sequence
+0017                  38     Start:          
+0017 D281             39                     setb    SDA
+0019 1102             40                     ACALL   Bit_Delay
+001B 1105             41                     ACALL   Set_SCL    
+001D C281             42                     clr     SDA
+001F 1102             43                     ACALL   Bit_Delay
+0021 110D             44                     ACALL   Clr_SCL
+0023 22               45                     RET
+                      46     ;
+                      47     ;Stop Sequence
+0024                  48     Stop:           
+0024 C281             49                     clr     SDA
+0026 1102             50                     ACALL   Bit_Delay
+0028 1105             51                     ACALL   Set_SCL
+002A D281             52                     setb    SDA
+002C 1102             53                     ACALL   Bit_Delay
+002E 22               54                     RET
+                      55     
+                      56     ;Transmit a byte over the I2C bus
+                      57     ;input: acc contains byte to transmit
+                      58     ;output: cy = 0 if sequence completes
+A51 MACRO ASSEMBLER  I2CDAC                                                               08/02/2011 17:34:32 PAGE     2
+
+                      59     ;        cy = 1 if unable to transmit
+                      60     ;
+002F                  61     Xmit_Byte:
+002F 7908             62                     mov     r1,#8           ;8 bits to send
+0031                  63     xb1:
+0031 33               64                     rlc     a
+0032 9281             65                     mov     SDA,c           ;put bit on pin
+0034 1112             66                     ACALL   Emit_Clock      ;emit clock pulse
+0036 D9F9             67                     djnz    r1,xb1          ;loop until done
+                      68     
+                      69     ;setup to accept ACK from slave device          
+0038 D281             70                     setb    SDA             ;release data pin
+003A 1102             71                     ACALL   Bit_Delay
+003C 1105             72                     acall   Set_SCL         ;SCL high
+003E 1102             73                     ACALL   Bit_Delay
+0040 308104           74                     jnb     SDA,xb2         ;jump if ACK seen
+0043 110D             75                     acall   Clr_SCL         ;drop SCL
+0045 D3               76                     setb    c               ;set error code
+0046 22               77                     ret
+0047                  78     xb2:
+0047 110D             79                     ACALL   Clr_SCL         ;drop SCL
+0049 C3               80                     clr     c               ;set completion code
+004A 22               81                     ret
+                      82     
+                      83                        
+                      84     ;               ***end of sub routines**********
+                      85     
+                      86     
+                      87     
+                      88     ;DAC output
+                      89     ;Transmit address ,control and data byte over I2C bus  
+                      90     ;
+                      91     ;output: cy = 0 if sequence completes
+                      92     ;        cy = 1 if unable to transmit
+                      93     ;
+004B                  94     xdb_fault:                              ;bus fault
+004B D3               95                     setb    c               ;set error code
+004C 22               96                     ret
+004D                  97     Put_DAI2C_Byte:
+004D 3080FB           98                     jnb     SCL,xdb_fault
+0050 3081F8           99                     jnb     SDA,xdb_fault   ;jump if bus fault
+0053 7490            100                     mov     a,#90H          ;setup slave address
+0055 1117            101                     acall   Start           ;set start condition
+0057 112F            102                     acall   Xmit_Byte       ;send slave address
+0059 400F            103                     jc      xdb1            ;jump on error
+005B 7440            104                     mov     a,#40H          ;setup DA mode data byte
+005D 112F            105                     acall   Xmit_Byte       ;send data byte
+005F 4009            106                     jc      xdb1            ;jump on error
+0061 EF              107                     mov     a,r7                    ;dac data
+0062 F4              108                     cpl a
+0063 F590            109                     mov p1,a
+0065 EF              110                     mov a,r7
+0066 112F            111                     acall   Xmit_Byte
+0068 4000            112                     jc      xdb1
+                     113     ;set stop condition, return code is already in cy
+006A                 114     xdb1:
+006A 1124            115                     acall   Stop            ;set stop condition
+006C 22              116                     ret
+                     117             
+006D                 118     Main:
+006D C3              119             clr     c
+006E 7F00            120             mov     r7,#00h
+0070 114D            121             acall   Put_DAI2C_Byte
+0072 40F9            122             jc      main
+0074 0F              123     next:   inc     r7
+0075 114D            124             acall   Put_DAI2C_Byte
+A51 MACRO ASSEMBLER  I2CDAC                                                               08/02/2011 17:34:32 PAGE     3
+
+0077 40F4            125             jc      main
+0079 BFFFF8          126             cjne    r7,#0ffH,next
+007C 114D            127             acall   Put_DAI2C_Byte
+007E 40ED            128             jc      main
+0080 7FFF            129             mov     r7,#0ffH
+0082 114D            130             acall   Put_DAI2C_Byte
+0084 1F              131     next1:  dec     r7
+0085 114D            132             acall   Put_DAI2C_Byte
+0087 40E4            133             jc      main
+0089 BF00F8          134             cjne    r7,#00H,next1
+008C 40DF            135             jc      main
+008E 80DD            136             jmp     main
+                     137         end
+                             
+                             
+                             
+                             
+                             
+                             
+A51 MACRO ASSEMBLER  I2CDAC                                                               08/02/2011 17:34:32 PAGE     4
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+BIT_DELAY. . . . .  C ADDR   0002H   A   
+CLR_SCL. . . . . .  C ADDR   000DH   A   
+EMIT_CLOCK . . . .  C ADDR   0012H   A   
+MAIN . . . . . . .  C ADDR   006DH   A   
+NEXT . . . . . . .  C ADDR   0074H   A   
+NEXT1. . . . . . .  C ADDR   0084H   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+PUT_DAI2C_BYTE . .  C ADDR   004DH   A   
+SCL. . . . . . . .  B ADDR   0080H.0 A   
+SDA. . . . . . . .  B ADDR   0080H.1 A   
+SET_SCL. . . . . .  C ADDR   0005H   A   
+START. . . . . . .  C ADDR   0017H   A   
+STOP . . . . . . .  C ADDR   0024H   A   
+XB1. . . . . . . .  C ADDR   0031H   A   
+XB2. . . . . . . .  C ADDR   0047H   A   
+XDB1 . . . . . . .  C ADDR   006AH   A   
+XDB_FAULT. . . . .  C ADDR   004BH   A   
+XMIT_BYTE. . . . .  C ADDR   002FH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

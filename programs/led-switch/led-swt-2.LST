@@ -1,0 +1,67 @@
+A51 MACRO ASSEMBLER  LED_SWT_2                                                            08/03/2011 15:38:13 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN led-swt-2.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE led-swt-2.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1         ;This programme demonstrates to interface DYNA-PIO-LED-SW with Dyna-51EB
+                       2     ; Connect the LED_SWitch board on Port1 
+                       3     ; The Higher nibble of port1 is in output mode and Lower nibble is in input mode.
+                       4     ; The LEDs  (Select The jumper JP5,6,7,8) on LED-SWITCH borad is used as status output dip-
+                             switches
+                       5     ; The DIP-switch on Lower nibble (Select the jumpers JP1,2,3,4) on LED switch board are inp
+                             ut source.
+                       6        
+                       7             ; BIT ASSIGNMENT FOR DYNA-PIO-LED-SW
+  0090                 8             dip_SW1                 BIT             P1.0
+  0091                 9             dip_sw2                 BIT             P1.1
+  0092                10             dip_SW3                 BIT             P1.2
+  0093                11             dip_SW4                 BIT             P1.3
+  0094                12             dipsw1_STS              BIT             P1.4
+  0095                13             dipsw2_STS              BIT             P1.5
+  0096                14             dipsw3_STS              BIT             P1.6
+  0097                15             dipsw4_STS              BIT             P1.7
+                      16             
+0100                  17                     ORG 0100H
+                      18                     
+0100 75A0FF           19                     MOV             P2,#0FFH
+0103 7590FF           20                     MOV             P1,#0FFH
+0106                  21             START:
+0106 A290             22                     MOV             C,dip_sw1
+0108 9294             23                     MOV             dipsw1_sts,C
+010A A291             24                     MOV             C,dip_SW2
+010C 9295             25                     MOV             dipsw2_sts,C
+010E A292             26                     MOV             C,dip_SW3
+0110 9296             27                     MOV             dipsw3_sts,C
+0112 A293             28                     MOV             C,dip_SW4
+0114 9297             29                     MOV             dipSW4_sts,C
+0116 80EE             30                     jmp             start
+                      31                     END
+A51 MACRO ASSEMBLER  LED_SWT_2                                                            08/03/2011 15:38:13 PAGE     2
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+DIPSW1_STS . . . .  B ADDR   0090H.4 A   
+DIPSW2_STS . . . .  B ADDR   0090H.5 A   
+DIPSW3_STS . . . .  B ADDR   0090H.6 A   
+DIPSW4_STS . . . .  B ADDR   0090H.7 A   
+DIP_SW1. . . . . .  B ADDR   0090H.0 A   
+DIP_SW2. . . . . .  B ADDR   0090H.1 A   
+DIP_SW3. . . . . .  B ADDR   0090H.2 A   
+DIP_SW4. . . . . .  B ADDR   0090H.3 A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+START. . . . . . .  C ADDR   0106H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

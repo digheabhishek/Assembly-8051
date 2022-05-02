@@ -1,0 +1,164 @@
+A51 MACRO ASSEMBLER  LCD_4BIT                                                             08/04/2011 10:22:16 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN lcd 4bit.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE lcd 4bit.ASM SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+0000                   1     ORG 0000H
+0000 020030            2                     LJMP MAIN
+0030                   3                     ORG 0030H
+0030 00                4     MAIN:           NOP
+  0090                 5                     EN      EQU   P1.0
+  0092                 6                     RS      EQU   P1.2
+  0091                 7                     RW      EQU   P1.1                                         
+  0090                 8                     DAT     EQU   P1
+0031 C291              9                     clr             rw
+0033 120069           10                     LCALL LCD_INT
+0036 12008F           11                     LCALL CLEAR
+0039 1200BD           12                     LCALL LINE1
+003C 9000DD           13                     MOV DPTR,#MYDATA
+003F 1200CF           14                     LCALL LOOP
+0042 1200C3           15                     LCALL LINE2
+0045 9000EC           16                     MOV DPTR,#MYDAT2
+0048 1200CF           17                     LCALL LOOP
+                      18                                     
+004B 80FE             19     again:          SJMP again
+                      20     
+                      21     ;=========================================================================
+004D C0E0             22     W_NIB:          PUSH  ACC               ;Save A for low nibble
+004F 4390F0           23                     ORL   DAT,#0F0h         ;Bits 4..7 <- 1
+0052 440F             24                     ORL   A,#0Fh            ;Don't affect bits 0-3
+0054 5290             25                     ANL   DAT,A             ;High nibble to display
+0056 D290             26                     SETB  EN 
+0058 C290             27                     CLR   EN 
+005A D0E0             28                     POP   ACC               ;Prepare to send
+005C C4               29                     SWAP  A                 ;...second nibble
+005D 4390F0           30                     ORL   DAT,#0F0h         ; Bits 4...7 <- 1
+0060 440F             31                     ORL   A,#0Fh            ; Don't affect bits 0...3
+0062 5290             32                     ANL   DAT,A             ;Low nibble to display
+0064 D290             33                     SETB  EN 
+0066 C290             34                     CLR   EN 
+0068 22               35                     RET
+                      36     ;=========================================================================
+0069 C292             37     LCD_INT:        CLR   RS
+                      38                     
+006B C290             39                     CLR   EN
+006D D290             40                     SETB  EN
+006F 759028           41                     MOV   DAT,#028h
+0072 C290             42                     CLR   EN
+0074 1200A0           43                     LCALL SDELAY
+0077 7428             44                     MOV   A,#28h
+0079 1200B2           45                     LCALL COM
+007C 740C             46                     MOV   A,#0Ch
+007E 1200B2           47                     LCALL COM
+0081 7406             48                     MOV   A,#06h
+0083 1200B2           49                     LCALL COM
+0086 12008F           50                     LCALL CLEAR
+0089 7480             51                     MOV A,#080H
+008B 1200B2           52                     LCALL COM
+008E 22               53                     RET
+                      54     ;=========================================================================
+008F C292             55     CLEAR:          CLR   RS
+0091 7401             56                     MOV   A,#01h
+0093 1200B2           57                     LCALL COM
+0096 22               58                     RET
+A51 MACRO ASSEMBLER  LCD_4BIT                                                             08/04/2011 10:22:16 PAGE     2
+
+                      59     
+                      60     ;=========================================================================
+0097 D292             61     DATAW:          SETB  RS
+                      62     
+0099 12004D           63                     LCALL W_NIB
+009C 1200A9           64                     LCALL LDELAY
+009F 22               65                     RET
+                      66     ;=========================================================================
+00A0 7E01             67     SDELAY:         MOV R6,#1                       
+00A2 7FFF             68     HERE2:          MOV R7,#255                     
+00A4 DFFE             69     HERE:           DJNZ R7,HERE
+00A6 DEFA             70                     DJNZ R6,HERE2
+00A8 22               71                     RET
+                      72     ;=========================================================================
+00A9 7E64             73     LDELAY:         MOV R6,#100                     
+00AB 7FFF             74     HER2:           MOV R7,#255                     
+00AD DFFE             75     HER:            DJNZ R7,HER
+00AF DEFA             76                     DJNZ R6,HER2
+00B1 22               77                     RET
+                      78     ;=========================================================================
+00B2 C292             79     COM:    CLR RS
+00B4 C291             80                     CLR RW
+00B6 12004D           81                     LCALL W_NIB
+00B9 1200A0           82                     LCALL SDELAY
+00BC 22               83                     RET
+                      84     ;=========================================================================
+00BD 7480             85     LINE1:  MOV A,#80H
+00BF 1200B2           86                     LCALL COM
+00C2 22               87                     RET
+00C3 74C0             88     LINE2:  MOV A,#0C0H
+00C5 1200B2           89                     LCALL COM
+00C8 22               90                     RET
+00C9 74C9             91     LINE3:  MOV A,#0c9H
+00CB 1200B2           92                     LCALL COM
+00CE 22               93                     RET
+                      94     
+                      95     ;=========================================================================
+00CF E4               96     LOOP:   CLR A
+00D0 93               97                     MOVC A,@A+DPTR
+00D1 6009             98                     JZ GO_B2
+00D3 120097           99                     LCALL DATAW
+00D6 1200A0          100                     LCALL SDELAY
+00D9 A3              101                     INC DPTR
+00DA 80F3            102                     SJMP LOOP
+00DC 22              103     GO_B2:  RET
+                     104     ;=========================================================================
+00DD 2044594E        105     MYDATA:         DB " DYNA-PIO-LCD ",0
+00E1 412D5049                
+00E5 4F2D4C43                
+00E9 442000                  
+00EC 20344249        106     MYDAT2:         DB " 4BIT MODE ",0
+00F0 54204D4F                
+00F4 44452000                
+                     107     
+                     108                     END
+A51 MACRO ASSEMBLER  LCD_4BIT                                                             08/04/2011 10:22:16 PAGE     3
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+AGAIN. . . . . . .  C ADDR   004BH   A   
+CLEAR. . . . . . .  C ADDR   008FH   A   
+COM. . . . . . . .  C ADDR   00B2H   A   
+DAT. . . . . . . .  D ADDR   0090H   A   
+DATAW. . . . . . .  C ADDR   0097H   A   
+EN . . . . . . . .  B ADDR   0090H.0 A   
+GO_B2. . . . . . .  C ADDR   00DCH   A   
+HER. . . . . . . .  C ADDR   00ADH   A   
+HER2 . . . . . . .  C ADDR   00ABH   A   
+HERE . . . . . . .  C ADDR   00A4H   A   
+HERE2. . . . . . .  C ADDR   00A2H   A   
+LCD_INT. . . . . .  C ADDR   0069H   A   
+LDELAY . . . . . .  C ADDR   00A9H   A   
+LINE1. . . . . . .  C ADDR   00BDH   A   
+LINE2. . . . . . .  C ADDR   00C3H   A   
+LINE3. . . . . . .  C ADDR   00C9H   A   
+LOOP . . . . . . .  C ADDR   00CFH   A   
+MAIN . . . . . . .  C ADDR   0030H   A   
+MYDAT2 . . . . . .  C ADDR   00ECH   A   
+MYDATA . . . . . .  C ADDR   00DDH   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+RS . . . . . . . .  B ADDR   0090H.2 A   
+RW . . . . . . . .  B ADDR   0090H.1 A   
+SDELAY . . . . . .  C ADDR   00A0H   A   
+W_NIB. . . . . . .  C ADDR   004DH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

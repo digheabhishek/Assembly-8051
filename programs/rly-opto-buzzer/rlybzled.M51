@@ -1,0 +1,84 @@
+BL51 BANKED LINKER/LOCATER V6.02                                                        08/03/2011  14:46:33  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.02, INVOKED BY:
+C:\KEIL\C51\BIN\BL51.EXE rlybzled.obj TO rlybzled RAMSIZE (256)
+
+
+INPUT MODULES INCLUDED:
+  rlybzled.obj (RLYBZLED)
+
+
+LINK MAP OF MODULE:  rlybzled (RLYBZLED)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     012CH     ABSOLUTE     
+
+
+
+SYMBOL TABLE OF MODULE:  rlybzled (RLYBZLED)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        RLYBZLED
+  B:00A0H.2       SYMBOL        BUZR_ON
+  B:0090H.4       SYMBOL        BUZR_SW
+  B:00A0H.4       SYMBOL        DIN0
+  B:0090H.2       SYMBOL        DIN0_STS
+  B:00A0H.5       SYMBOL        DIN1
+  B:0090H.3       SYMBOL        DIN1_STS
+  B:00A0H.3       SYMBOL        LED_ON
+  B:0090H.5       SYMBOL        LED_SW
+  B:00A0H.6       SYMBOL        OPTO0_IN
+  B:0090H.0       SYMBOL        OPTO0_STS
+  B:00A0H.7       SYMBOL        OPTO1_IN
+  B:0090H.1       SYMBOL        OPTO1_STS
+  D:0090H         SYMBOL        P1
+  D:00A0H         SYMBOL        P2
+  B:00A0H.1       SYMBOL        RLY_NC_ON
+  B:0090H.7       SYMBOL        RLY_NC_SW
+  B:00A0H.0       SYMBOL        RLY_NO_ON
+  B:0090H.6       SYMBOL        RLY_NO_SW
+  C:0106H         SYMBOL        START
+  C:0100H         LINE#         28
+  C:0103H         LINE#         29
+  C:0106H         LINE#         31
+  C:0108H         LINE#         32
+  C:010AH         LINE#         33
+  C:010CH         LINE#         34
+  C:010EH         LINE#         35
+  C:0110H         LINE#         36
+  C:0112H         LINE#         37
+  C:0114H         LINE#         38
+  C:0116H         LINE#         39
+BL51 BANKED LINKER/LOCATER V6.02                                                      08/03/2011  14:46:33  PAGE 2
+
+
+  C:0118H         LINE#         40
+  C:0119H         LINE#         41
+  C:011BH         LINE#         42
+  C:011DH         LINE#         43
+  C:011EH         LINE#         44
+  C:0120H         LINE#         45
+  C:0122H         LINE#         46
+  C:0123H         LINE#         47
+  C:0125H         LINE#         48
+  C:0127H         LINE#         49
+  C:0128H         LINE#         50
+  C:012AH         LINE#         51
+  -------         ENDMOD        RLYBZLED
+
+******************************************************************************
+* RESTRICTED VERSION WITH 0800H BYTE CODE SIZE LIMIT; USED: 002CH BYTE ( 2%) *
+******************************************************************************
+
+Program Size: data=8.0 xdata=0 code=300
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

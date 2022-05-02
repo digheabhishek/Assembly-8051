@@ -1,0 +1,119 @@
+A51 MACRO ASSEMBLER  8_BIT_LCD                                                            08/04/2011 11:40:41 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN 8-bit LCD.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE 8-bit LCD.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;8 bit LCD routines with check busy flag before sending data, command to LCD        
+                       2     ;*************************************************************
+  00A0                 3     LCD     DATA     P2          ;define LCD data port on port 2
+  00A7                 4     BUSY    BIT      LCD.7       ;define LCD busy flag
+  0090                 5     E       BIT      P1.0        ;define LCD enable pin on port 1.0
+  0092                 6     RS      BIT      P1.2        ;define LCD register select pin on port 1.2
+  0091                 7     RW      BIT      P1.1        ;define LCD read/write pin on port 1.1
+                       8     ;*************************************************************
+0000                   9             ORG      00H
+                      10     
+0000                  11     LCD_INIT:
+0000 7438             12             MOV      A,#38H                ;2 line 5x7
+0002 1124             13             ACALL    COMMAND    
+0004 740C             14             MOV      A,#0CH                ;LCD on cursor on
+0006 1124             15             ACALL    COMMAND
+0008 7401             16             MOV      A,#01H                ;clear LCD
+000A 1124             17             ACALL    COMMAND
+000C 7406             18             MOV      A,#06H                ;shift cursor right
+000E 1124             19             ACALL    COMMAND
+0010 7481             20     DISPLAY:MOV      A,#81H
+0012 1124             21             ACALL    COMMAND
+0014 900058           22             MOV      DPTR,#TEST
+0017 114C             23             ACALL    DISP_STRING
+0019 74C1             24             MOV      A,#0C1H
+001B 1124             25             ACALL    COMMAND
+001D 900066           26             MOV      DPTR,#TEST+0EH
+0020 114C             27             ACALL    DISP_STRING
+0022 80FE             28     HERE:   SJMP     HERE        
+                      29     ;=============================================================
+0024                  30     COMMAND:
+0024 113E             31             ACALL    READY                 ;is LCD ready?
+0026 F5A0             32             MOV      LCD,A                 ;issue command code
+0028 C292             33             CLR      RS                    ;RS=0 for command
+002A C291             34             CLR      RW                    ;R/W=0 to write to LCD|
+002C D290             35             SETB     E                     ;E=1 for H-to-L pulse
+002E C290             36             CLR      E                     ;E=0 ,latch in
+0030 22               37             RET
+                      38     ;=============================================================
+0031                  39     DATA_DISPLAY:
+0031 113E             40             ACALL    READY                 ;is LCD ready?
+0033 F5A0             41             MOV      LCD,A                 ;issue data
+0035 D292             42             SETB     RS                    ;RS=1 for data
+0037 C291             43             CLR      RW                    ;R/W=0 to write to LCD
+0039 D290             44             SETB     E                     ;E=1 for H-to-L pulse
+003B C290             45             CLR      E                     ;E=0 ,latch in
+003D 22               46             RET
+                      47     ;=============================================================
+003E                  48     READY:
+003E D2A7             49             SETB     BUSY                  ;make P1.7 input port
+0040 C292             50             CLR      RS                    ;RS=0 access command reg
+0042 D291             51             SETB     RW                    ;R/W=1 read command reg
+                      52     ;read command reg and check busy flag
+0044                  53     BACK:
+0044 C290             54             CLR      E                     ;E=1 for H-to-L pulse
+0046 D290             55             SETB     E                     ;E=0 H-to-l pulse
+0048 20A7F9           56             JB       BUSY,BACK             ;stay until busy flag=0
+004B 22               57             RET
+                      58     ;=============================================================
+A51 MACRO ASSEMBLER  8_BIT_LCD                                                            08/04/2011 11:40:41 PAGE     2
+
+004C                  59     DISP_STRING:
+004C E4               60         CLR      A                     ;A=0
+004D 7F00             61             MOV      R7,#00H               ;R7=0
+004F                  62     NEXT_CHAR:
+004F 0F               63             INC      R7                    ;R7+1
+0050 93               64             MOVC     A,@A+DPTR
+0051 1131             65             ACALL    DATA_DISPLAY
+0053 EF               66             MOV      A,R7
+0054 BF0EF8           67             CJNE     R7,#0EH,NEXT_CHAR
+0057 22               68             RET        
+                      69     ;=============================================================
+0058 44594E41         70     TEST:   DB       "DYNA-PIO-LCD ","   8BIT-MODE   "     
+005C 2D50494F                
+0060 2D4C4344                
+0064 20202020                
+0068 38424954                
+006C 2D4D4F44                
+0070 45202020                
+                      71             END
+A51 MACRO ASSEMBLER  8_BIT_LCD                                                            08/04/2011 11:40:41 PAGE     3
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+BACK . . . . . . .  C ADDR   0044H   A   
+BUSY . . . . . . .  B ADDR   00A0H.7 A   
+COMMAND. . . . . .  C ADDR   0024H   A   
+DATA_DISPLAY . . .  C ADDR   0031H   A   
+DISPLAY. . . . . .  C ADDR   0010H   A   
+DISP_STRING. . . .  C ADDR   004CH   A   
+E. . . . . . . . .  B ADDR   0090H.0 A   
+HERE . . . . . . .  C ADDR   0022H   A   
+LCD. . . . . . . .  D ADDR   00A0H   A   
+LCD_INIT . . . . .  C ADDR   0000H   A   
+NEXT_CHAR. . . . .  C ADDR   004FH   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+READY. . . . . . .  C ADDR   003EH   A   
+RS . . . . . . . .  B ADDR   0090H.2 A   
+RW . . . . . . . .  B ADDR   0090H.1 A   
+TEST . . . . . . .  C ADDR   0058H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

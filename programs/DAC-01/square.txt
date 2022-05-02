@@ -1,0 +1,12 @@
+org 0000h
+mov p0,#00h
+mov p1,#00h
+mov p1,#01h
+mov a,#00h
+next: mov p0,a
+inc a
+cjne a,#0ffh,next
+tt:dec a
+mov p0,a
+cjne a,#00h,tt
+ljmp next

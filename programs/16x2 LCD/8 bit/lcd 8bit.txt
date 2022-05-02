@@ -1,0 +1,63 @@
+//FOR 8BIT LCD INTERFACING
+//CONNECTION DETAIL:- CONNECT PORT0 OF DYNA-EB TO J1 
+//AND PORT 2 OF DYNA-EB TO J2
+// JUMPER SETTINGS FRM JP1 TO JP4 SELECT PIN 2 AND 3 
+// JUMPER SETTINGS FRM JP5 TO JP7 SELECT PIN 1 AND 2
+org 0000h
+mov a,#38h
+acall comm
+acall delay
+
+mov a,#0eh
+acall comm
+acall delay
+
+mov a,#01h
+acall comm
+acall delay
+
+mov a,#06h
+acall comm
+acall delay
+
+mov a,#80h
+acall comm
+acall delay
+
+mov a,#'D'
+acall data1
+acall delay
+
+mov a,#'Y'
+acall data1
+acall delay
+
+mov a,#'N'
+acall data1
+acall delay
+
+mov a,#'A'
+acall data1
+acall delay
+
+
+comm: mov p0,a
+clr p2.2
+clr p2.1
+setb p2.0
+clr p2.0
+ret
+
+data1: mov p0,a
+setb p2.2
+clr p2.1
+setb p2.0
+clr p2.0
+ret
+
+delay: mov r1,#255
+ag2:mov r2,#255                                                                                                                                                                                                                                                                            
+ag1:djnz r2,ag1
+djnz r1,ag2
+ret
+end

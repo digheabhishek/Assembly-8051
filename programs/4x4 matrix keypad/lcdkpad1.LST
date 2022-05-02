@@ -1,0 +1,376 @@
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.00b
+OBJECT MODULE PLACED IN lcdkpad1.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE lcdkpad1.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+  00A0                 1     lcd_port        equ     P2
+                       2     
+0000                   3             ORG     0000H 
+0000 020174            4             LJMP    MAIN 
+                       5     
+                       6              
+0003                   7      LCD_RESET: ;RESET & initialize LCD in 4-bit mode 
+0003 53A00F            8             ANL     lcd_port,#0FH   ;HIGHER NIBLE =0, CONTROL PINS UNCHANGED
+0006 1193              9             ACALL   DELAYL          ;20mS DELAY
+0008 1193             10             ACALL   DELAYL
+000A 1193             11             ACALL   DELAYL
+000C 1193             12             ACALL   DELAYL
+000E 75A031           13             MOV     lcd_port,#31h ;FIRST BYTEDATA=30h ,ENABLE=1
+0011 75A030           14             MOV     lcd_port,#30h ;DATA=30h ,ENABLE=0
+0014 1193             15             ACALL   DELAYL          ; 15mS DELAY
+0016 1193             16         ACALL       DELAYL
+0018 1193             17             ACALL   DELAYL
+001A 75A031           18             MOV     lcd_port,#31h ;SECOND BYTE DATA=30h ,ENABLE=1
+001D 75A030           19             MOV     lcd_port,#30h ;DATA=30h ,ENABLE=0
+0020 1193             20             ACALL   DELAYL          ; 5mS DELAY
+0022 75A031           21             MOV     lcd_port,#31h ;THIRD BYTE DATA=30h ,ENABLE=1
+0025 75A030           22             MOV     lcd_port,#30h ;DATA=30h ,ENABLE=0
+0028 1193             23             ACALL   DELAYL          ; 5mS DELAY
+002A 75A021           24             MOV     lcd_port,#21h ;4-BIT MODE DATA=20h ,ENABLE=1
+002D 75A020           25             MOV     lcd_port,#20h ;DATA=20h ,ENABLE=0
+0030 1193             26             ACALL   DELAYL          ; 5mS DELAY
+0032 22               27             RET
+0033                  28     LCD_INIT:
+                      29     
+0033 1103             30             ACALL   LCD_RESET
+0035 7428             31             MOV     A,#28H  ;4-BIT MODE, 2LINE, 5X7 DOTS
+0037 1146             32             ACALL   LCD_CMD
+0039 740C             33             MOV     A,#0cH  ; DISPLAY=ON,,CUSOR BLINKING
+003B 1146             34             ACALL   LCD_CMD
+003D 7406             35             MOV     A,#06H  ;AUTO INCREMENT
+003F 1146             36             ACALL   LCD_CMD
+0041 7480             37             MOV     A,#80H  ; CURSOR TO LINE 1
+0043 1146             38             ACALL   LCD_CMD
+0045 22               39             RET
+                      40     
+0046                  41     LCD_CMD:
+                      42             ;SEND HIGHER NIBBLE
+0046 F8               43             MOV     R0,A
+0047 1150             44             CALL    OUTCMD
+                      45             ; SEND LOWER NIBBLE
+0049 E8               46             MOV     A,R0
+004A C4               47             SWAP    A ; SWAP LOWER NIBBLE TO HIGHER NIBBLE
+004B 1150             48             CALL    OUTCMD
+004D 1193             49             ACALL   DELAYL
+004F 22               50             RET
+0050                  51     OUTCMD:
+0050 54F0             52             ANL     A,#0F0H  ; MASK LOWER NIBBLE
+0052 4401             53             ORL     A,#01H  ; ENABLE=1,RS=0 CMD REG
+0054 F5A0             54             MOV LCD_PORT,A
+0056 54F0             55             ANL     A,#0F0H ; ENABLE=0,RS=0 CMD REG 
+0058 F5A0             56             MOV     LCD_PORT,A
+005A 22               57             RET
+                      58     
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     2
+
+005B                  59      LCD_STRING:
+005B 75A000           60             MOV     LCD_PORT,#00H 
+005E 7400             61             MOV     A,#00H
+0060 7900             62             MOV     R1,#00H
+0062                  63      NC: ;checks the end of message string
+0062 93               64             MOVC    A,@A+DPTR
+0063 B42F01           65             CJNE    A,#2FH,NC1
+0066 22               66             RET
+0067                  67      NC1:
+0067 12006E           68             LCALL   LCD_WRITE
+006A 09               69             INC     R1
+006B E9               70             MOV     A,R1 
+006C 0162             71             AJMP    NC 
+                      72     
+006E                  73      LCD_WRITE:
+                      74     
+                      75             ;SEND HIGHER NIBBLE
+006E F8               76             MOV     R0,A
+006F 1178             77             CALL    OUTDAT
+                      78             ; SEND LOWER NIBBLE
+0071 E8               79             MOV     A,R0
+0072 C4               80             SWAP    A ; SWAP LOWER NIBBLE TO HIGHER NIBBLE
+0073 1178             81             CALL    OUTDAT
+0075 1193             82             ACALL   DELAYL
+0077 22               83             RET
+0078                  84     OUTDAT:
+0078 54F0             85             ANL     A,#0F0H  ; MASK LOWER NIBBLE
+007A 4405             86             ORL     A,#05H  ; ENABLE=1,RS=1 DATA REG
+007C F5A0             87             MOV LCD_PORT,A
+007E 54F4             88             ANL     A,#0F4H ; ENABLE=0,RS=1 DATA REG
+0080 F5A0             89             MOV     LCD_PORT,A
+0082 22               90             RET
+                      91                     
+0083                  92      NEXT_LINE:
+0083 75A000           93             MOV     LCD_PORT,#00H
+0086 74C0             94             MOV     A,#0C0H
+0088 1146             95             ACALL   LCD_CMD
+008A 22               96             RET 
+                      97     
+008B                  98      LCD_CLEAR: 
+                      99             ;This Subroutine is used to clear LCD
+008B 75A000          100             MOV     LCD_PORT,#00H
+008E 7401            101             MOV     A,#01H          ;CLEAR DISPLAY
+0090 1146            102             ACALL   LCD_CMD
+0092 22              103             RET 
+                     104     
+                     105      
+0093                 106      DELAYL: ; 5ms DELAY
+0093 D2D4            107             SETB    PSW.4 ; SELECT BANK 2
+0095 7F19            108             MOV     R7,#25
+0097                 109      HDH:
+0097 7E3C            110             MOV     R6,#60
+0099 DEFE            111             DJNZ    R6,$
+009B DFFA            112             DJNZ    R7,HDH 
+009D C2D4            113             CLR     PSW.4 ;DEFAULT BANK 
+009F 22              114             RET
+                     115     
+00A0                 116      LOOP: ;1 SEC DELAY
+00A0 7F64            117             MOV     R7,#100
+00A2                 118      LOOP1:
+00A2 1193            119             CALL    DELAYL
+00A4 1193            120             CALL    DELAYL
+00A6 DFFA            121             DJNZ    R7,LOOP1
+00A8 22              122             RET
+                     123     
+                     124     ;----keyboard scan--------
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     3
+
+                     125     
+                     126     ;keyboard format: 0 4 8 C
+                     127     ;                 1 5 9 D
+                     128     ;                 2 6 A E
+                     129     ;                 3 7 B F
+                     130     ;*************************************************
+                     131     ;Declarations
+  0080               132     CL0 equ  P0.0;
+  0081               133     CL1 equ  P0.1;
+  0082               134     CL2 equ  P0.2;
+  0083               135     CL3 equ  P0.3;
+  0084               136     RW0 equ  P0.4;
+  0085               137     RW1 equ  P0.5;
+  0086               138     RW2 equ  P0.6;
+  0087               139     RW3 equ  P0.7;
+                     140     ;*************************************************
+                     141     
+                     142     ;Subroutine to scan keys
+00A9                 143      scan_key:
+00A9 7580FF          144                     mov     P0,#0ffh        ;Configure input
+00AC C280            145             clr cl0
+00AE E580            146             mov  a,p0
+00B0 54F0            147             anl a,#11110000b
+00B2 B4F03C          148             cjne a,#11110000b,Row0
+00B5 D280            149             setb cl0
+00B7 3135            150                     CALL dly
+00B9 3135            151                     CALL dly
+00BB 3135            152                     call dly
+00BD C281            153             clr cl1
+00BF E580            154             mov  a,p0
+00C1 54F0            155             anl a,#11110000b
+00C3 B4F03C          156             cjne a,#11110000b,Row1
+00C6 D281            157             setb cl1
+00C8 3135            158                     CALL dly
+00CA 3135            159                     CALL dly
+00CC 3135            160                     call dly
+00CE C282            161                     clr cl2
+00D0 E580            162             mov  a,p0
+00D2 54F0            163             anl a,#11110000b
+00D4 B4F03C          164             cjne a,#11110000b,Row2
+00D7 D282            165             setb cl2
+00D9 3135            166                     CALL dly
+00DB 3135            167                     CALL dly
+00DD 3135            168                     call dly
+00DF C283            169             clr cl3
+00E1 E580            170             mov  a,p0
+00E3 54F0            171             anl a,#11110000b
+00E5 B4F03C          172             cjne a,#11110000b,Row3
+00E8 D283            173             setb cl3
+00EA 3135            174                     CALL dly
+00EC 3135            175                     CALL dly
+00EE 3135            176                     call dly
+00F0 22              177                     ret
+                     178     
+00F1                 179     row0: 
+00F1 900146          180                     mov     dptr,#key_data
+00F4 7E04            181             mov     r6,#04h
+00F6 C3              182             clr     c
+00F7 C4              183                     swap    a
+00F8 13              184     rww0:   rrc     a
+00F9 4002            185             jc              next0
+00FB 803D            186             jmp     over
+00FD                 187     next0:
+00FD A3              188                     inc     dptr
+00FE DEF8            189             djnz    r6,rww0
+0100 80A7            190             jmp     scan_key
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     4
+
+                     191     
+0102 90014A          192     row1:   mov     dptr,#key_data+4h
+0105 7E04            193             mov     r6,#04h
+0107 C3              194             clr     c
+0108 C4              195                     swap    a
+0109 13              196     rww1:   rrc     a
+010A 4002            197             jc      next1
+010C 802C            198             jmp     over
+010E                 199     next1:
+010E A3              200                     inc     dptr
+010F DEF8            201             djnz    r6,rww1
+0111 8096            202             sjmp    scan_key
+                     203     
+0113 90014E          204     row2:   mov     dptr,#key_data+8h
+0116 7E04            205             mov     r6,#04h
+0118 C3              206             clr     c
+0119 C4              207                     swap    a
+011A 13              208     rww2:   rrc     a
+011B 4002            209             jc      next2
+011D 801B            210             sjmp    over
+011F                 211     next2:  
+011F A3              212                     inc     dptr
+0120 DEF8            213             djnz    r6,rww2
+0122 8085            214             jmp     scan_key
+                     215     
+0124 900152          216     row3:   mov     dptr,#key_data+0ch
+0127 7E04            217             mov     r6,#04h
+0129 C3              218             clr     c
+012A C4              219                     swap    a
+012B 13              220     rww3:   rrc     a
+012C 4002            221             jc      next3
+012E 800A            222             sjmp    over
+0130 A3              223     next3:  inc     dptr
+0131 DEF8            224             djnz    r6,rww3
+0133 01A9            225             jmp     scan_key
+                     226     
+0135                 227     dly:
+0135 7BFF            228                     mov     r3,#0ffH
+0137 DBFE            229     dly1:   djnz    r3, dly1
+0139 22              230                     RET
+                     231     
+013A                 232     over:  
+013A 7D01            233                     mov r5,#01h      ;flag for key pressed
+013C 22              234                     ret
+                     235     
+                     236     ;*************************************************
+                     237     ;Display subroutine
+013D                 238     display:
+013D BD0003          239                     cjne r5,#00h,data_disp ; if key pressed then display data
+0140 7420            240                     mov a,#' '       ;else display blank
+0142 22              241                     ret
+0143                 242     data_disp:
+0143 E4              243                     clr a
+0144 93              244             movc a,@a+dptr
+0145 22              245             ret
+                     246       
+                     247     ;*************************************************
+                     248     ;lookup table
+0146                 249             key_data:
+0146 30313233        250              db "0","1","2","3"; For row1:0 1 2 3
+014A 34353637        251          db "4","5","6","7"; For row2:4 5 6 7
+014E 38394142        252          db "8","9","A","B"; For row3:8 9 A B
+0152 43444546        253          db "C","D","E","F"; For row4:C D E F
+                     254     
+                     255     ;DATA TO BE DISPLAYED
+                     256     
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     5
+
+                     257     ;Maximum message length = 16 characters.
+                     258     
+                     259     ;DISPLAY DATA TABLE IN ASCII FORMAT
+                     260     
+                     261             
+0156                 262             MSG1:           
+0156 50494F2D        263             DB      "PIO-4X4 KEYPAD/"; /= END OF STRING
+015A 34583420                
+015E 4B455950                
+0162 41442F                  
+                     264             
+0165                 265             MSG2:   
+0165 4B455920        266             DB      "KEY PRESSED = /";/= END OF STRING
+0169 50524553                
+016D 53454420                
+0171 3D202F                  
+                     267     
+                     268     ;*************************************************
+                     269     
+                     270     ;**************main program starts here ***********
+0174                 271     MAIN:
+0174 1133            272             CALL    LCD_INIT ;Initialize lcd
+0176 118B            273             CALL    LCD_CLEAR
+0178 900156          274             MOV     DPTR,#MSG1
+017B 115B            275             CALL    LCD_STRING ;Display message on LCD
+017D 1183            276             CALL    NEXT_LINE ;Place cursor to;second Line
+017F 900165          277             MOV     DPTR,#MSG2 
+0182 115B            278             CALL    LCD_STRING ;Display message on LCD
+0184 7580FF          279             mov     P0,#0ffh        ;Configure input
+0187 7D00            280             mov             r5,#00h         ; clr flag for no key pressed
+0189                 281     KEY_SCAN:                     
+0189 11A9            282         call    scan_key     ;Scan for keypress
+018B 313D            283         call    display      ;display the key pressed
+018D 116E            284             CALL    LCD_WRITE
+018F 7410            285             mov     A,#10H          ; move cursor position 
+0191 1146            286             call    lcd_cmd
+0193 80F4            287             sjmp    key_scan    ;Loop
+                     288             end
+                               
+A51 MACRO ASSEMBLER  LCDKPAD1                                                             12/10/2010 10:52:54 PAGE     6
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+CL0. . . . . . . .  B ADDR   0080H.0 A   
+CL1. . . . . . . .  B ADDR   0080H.1 A   
+CL2. . . . . . . .  B ADDR   0080H.2 A   
+CL3. . . . . . . .  B ADDR   0080H.3 A   
+DATA_DISP. . . . .  C ADDR   0143H   A   
+DELAYL . . . . . .  C ADDR   0093H   A   
+DISPLAY. . . . . .  C ADDR   013DH   A   
+DLY. . . . . . . .  C ADDR   0135H   A   
+DLY1 . . . . . . .  C ADDR   0137H   A   
+HDH. . . . . . . .  C ADDR   0097H   A   
+KEY_DATA . . . . .  C ADDR   0146H   A   
+KEY_SCAN . . . . .  C ADDR   0189H   A   
+LCD_CLEAR. . . . .  C ADDR   008BH   A   
+LCD_CMD. . . . . .  C ADDR   0046H   A   
+LCD_INIT . . . . .  C ADDR   0033H   A   
+LCD_PORT . . . . .  D ADDR   00A0H   A   
+LCD_RESET. . . . .  C ADDR   0003H   A   
+LCD_STRING . . . .  C ADDR   005BH   A   
+LCD_WRITE. . . . .  C ADDR   006EH   A   
+LOOP . . . . . . .  C ADDR   00A0H   A   
+LOOP1. . . . . . .  C ADDR   00A2H   A   
+MAIN . . . . . . .  C ADDR   0174H   A   
+MSG1 . . . . . . .  C ADDR   0156H   A   
+MSG2 . . . . . . .  C ADDR   0165H   A   
+NC . . . . . . . .  C ADDR   0062H   A   
+NC1. . . . . . . .  C ADDR   0067H   A   
+NEXT0. . . . . . .  C ADDR   00FDH   A   
+NEXT1. . . . . . .  C ADDR   010EH   A   
+NEXT2. . . . . . .  C ADDR   011FH   A   
+NEXT3. . . . . . .  C ADDR   0130H   A   
+NEXT_LINE. . . . .  C ADDR   0083H   A   
+OUTCMD . . . . . .  C ADDR   0050H   A   
+OUTDAT . . . . . .  C ADDR   0078H   A   
+OVER . . . . . . .  C ADDR   013AH   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+ROW0 . . . . . . .  C ADDR   00F1H   A   
+ROW1 . . . . . . .  C ADDR   0102H   A   
+ROW2 . . . . . . .  C ADDR   0113H   A   
+ROW3 . . . . . . .  C ADDR   0124H   A   
+RW0. . . . . . . .  B ADDR   0080H.4 A   
+RW1. . . . . . . .  B ADDR   0080H.5 A   
+RW2. . . . . . . .  B ADDR   0080H.6 A   
+RW3. . . . . . . .  B ADDR   0080H.7 A   
+RWW0 . . . . . . .  C ADDR   00F8H   A   
+RWW1 . . . . . . .  C ADDR   0109H   A   
+RWW2 . . . . . . .  C ADDR   011AH   A   
+RWW3 . . . . . . .  C ADDR   012BH   A   
+SCAN_KEY . . . . .  C ADDR   00A9H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
